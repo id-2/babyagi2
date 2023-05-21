@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # The embedded document Q&A retrieval functionality is from: https://github.com/imartinez/privateGPT.git
-# The main functionality from file ivateGPT.py has been integrated in BabyAGI
+# The main functionality from file privateGPT.py has been integrated in BabyAGI
 # Many thanks to https://github.com/imartinez for the great work!
 
 from dotenv import load_dotenv
@@ -126,13 +126,11 @@ if ENABLE_DOCUMENT_EXTENSION:
         from langchain.llms import GPT4All, LlamaCpp
         import argparse
 
-        DOC_CONTEXT = int(os.getenv("DOC_CONTEXT", 2000))
-
         embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME")
         persist_directory = os.environ.get('DOC_PERSIST_DIRECTORY')
-        model_type = os.environ.get('EMBEDDINGS_MODEL')
+        model_type = os.environ.get('EMBEDDINGS_MODEL_TYPE')
         model_path = os.environ.get('EMBEDDINGS_MODEL_PATH')
-        model_n_ctx = os.environ.get('DOC_CTX_MAX')
+        model_n_ctx = os.environ.get('LLAMA_CTX_MAX')
 
         # Define the Chroma settings
         CHROMA_SETTINGS = Settings(
@@ -140,7 +138,7 @@ if ENABLE_DOCUMENT_EXTENSION:
                 persist_directory=persist_directory,
                 anonymized_telemetry=False
         )
-        
+
         # Command line parser function
         def parse_arguments():
             parser = argparse.ArgumentParser(description='privateGPT: Ask questions to your documents without an internet connection, '
@@ -692,31 +690,29 @@ def execution_agent(objective: str, task: str) -> str:
             context[i] = context[i][int(i*(LLAMA_CONTEXT/(top_results_num*result_factor))):int((LLAMA_CONTEXT/(top_results_num*result_factor)*(i+1)))]
     else:
         context = context_agent(query=objective, top_results_num=5)
-        
+                
+    print(f"\033[96m\033[1m\n*****RELEVANT CONTEXT*****\033[0m\033[0m\n{context}")
+    write_to_file(f"\n*****RELEVANT CONTEXT*****\n{context}\n", 'a')
+
     if ENABLE_DOCUMENT_EXTENSION:
         doc_context = ""
-        num_extracts = 1
         doc_query = task
-        doc_length = int(DOC_CONTEXT/2)
+        doc_length = int(LLAMA_CONTEXT/2)
 
-        # Get the answer from the chain
-        res = qa(doc_query)
-        answer, docs = res['result'], [] if args.hide_source else res['source_documents']
-
-        # Failsafe for llama with limited context length
-        if LLM_MODEL.startswith("llama"):
-            if answer:
-                doc_context = str(answer)[0:doc_length]
-        else:
-            if answer:
-                doc_context = str(answer)
-                
-        print(f"\033[96m\033[1m\n*****RELEVANT CONTEXT & DOCS*****\033[0m\033[0m\n{context}\n{doc_context}")
-        write_to_file(f"\n*****RELEVANT CONTEXT & DOCS*****\n{context}\n{doc_context}\n", 'a')
-        
-    else:
-        print(f"\033[96m\033[1m\n*****RELEVANT CONTEXT*****\033[0m\033[0m\n{context}")
-        write_to_file(f"\n*****RELEVANT CONTEXT*****\n{context}\n", 'a')
+        # Retrieve document embedding context via Q&A
+        if INITIAL_TASK not in task:
+            print(f"\033[96m\033[1m\n*****DOCUMENT EMBEDDING CONTEXT*****\033[0m\033[0m\n")
+            write_to_file(f"\n*****DOCUMENT EMBEDDING CONTEXT*****\n", 'a')
+            res = qa(doc_query)
+            answer, docs = res['result'], [] if args.hide_source else res['source_documents']
+            if LLM_MODEL.startswith("llama"):
+                if answer:
+                    doc_context = str(answer)[0:doc_length]
+            else:
+                if answer:
+                    doc_context = str(answer)
+            write_to_file(doc_context + "\n\n", 'a')
+            print()
 
     prompt = f'Perform one task based on the following objective: {objective}\n'
     if context:
@@ -843,7 +839,7 @@ def llama_failsafe_routine(internet_result: str, search_result: str):
     if ENABLE_DOCUMENT_EXTENSION:
         doc_context = ""
         doc_query = objective
-        doc_length = int(DOC_CONTEXT/2)
+        doc_length = int(LLAMA_CONTEXT/2)
 
         # Get the answer from the chain
         res = qa(doc_query)
