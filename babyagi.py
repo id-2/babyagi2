@@ -2,7 +2,6 @@
 
 # The embedded document Q&A retrieval functionality is from: https://github.com/imartinez/privateGPT.git
 # The main functionality from file privateGPT.py has been integrated in BabyAGI
-# File document-loader.py loads all documents from subfolder 'source_documents' and embedds them in chroma vector store
 # Many thanks to https://github.com/imartinez for the great work!
 
 from dotenv import load_dotenv
@@ -722,7 +721,7 @@ def execution_agent(objective: str, task: str) -> str:
         prompt += f'Consider the answer on the task from related document embedding query: {doc_context}'
     if ENABLE_SEARCH_EXTENSION:
         #prompt += f'\nDo your best to complete the task and provide a useful answer. Responding with the task content itself, a variation of it or vague suggestions, is not #useful as well. In this case assume that internet search is required.'
-        prompt += f'\nIf internet search is required to complete the task, respond with "Internet search request: " and redraft the task to an optimal concise internet search request.'
+        prompt += f'\nIf internet search is required to complete the task, add to the response "Internet search request: " and redraft the task to an optimal concise internet search request.'
     prompt += f'\n\nYour task: {task}\nYour response: '
 
     return openai_call(prompt, max_tokens=2000)
@@ -905,7 +904,7 @@ def main():
             internet_prompt, internet_result, search_result = check_search_request(result, str(task["task_name"]))
 
             # Failsafe for llama with limited context length
-            if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(result) < int(LLAMA_CONTEXT/10):
+            if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(result) < int(LLAMA_CONTEXT/10) and len(internet_result) < int(LLAMA_CONTEXT/10):
                 result, next_task_flag = llama_failsafe_routine(str(task["task_name"]), internet_result, search_result)
 
                 # Normal procedure with enriched result storage and then create new tasks
@@ -929,6 +928,8 @@ def main():
             # Step 3: Enrich result and store in the results storage
             # This is where you should enrich the result if needed
             else:
+                if internet_result:
+                    result = internet_result
                 #print(f"\nUpdate embedded vector store with result: {result}")
                 enriched_result = {
                     "data": result
