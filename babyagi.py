@@ -127,7 +127,7 @@ if ENABLE_DOCUMENT_EXTENSION:
         import argparse
 
         embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME")
-        persist_directory = os.environ.get('DOC_PERSIST_DIRECTORY')
+        persist_directory = os.environ.get('DOC_PERSIST_STORAGE')
         model_type = os.environ.get('EMBEDDINGS_MODEL_TYPE')
         model_path = os.environ.get('EMBEDDINGS_MODEL_PATH')
         model_n_ctx = os.environ.get('LLAMA_CTX_MAX')
@@ -552,14 +552,14 @@ Return one task per line in your response. The result must be a numbered list in
 The number of each entry must be followed by a period. If your list is empty, write "There are no tasks to add at this time."
 Unless your list is empty, do not include any headers before your numbered list or follow your numbered list with any other output."""
 
-    print(f"\n*****TASK CREATION AGENT PROMPT****\n{prompt}")
+    print(f"\n*****TASK CREATION AGENT PROMPT****{prompt}")
     write_to_file(f"\n****TASK CREATION AGENT PROMPT****\n{prompt}\n", 'a')
     if LLM_MODEL.startswith("llama"):
         response = openai_call(prompt, max_tokens=2000)[0:int(LLAMA_CONTEXT)]
     else:
         response = openai_call(prompt, max_tokens=2000)
 
-    print(f"\n****TASK CREATION AGENT RESPONSE****\n{response}")
+    print(f"\n****TASK CREATION AGENT RESPONSE****{response}")
     write_to_file(f"\n****TASK CREATION AGENT RESPONSE****\n{response}\n", 'a')
     new_tasks = response.split('\n')
     new_tasks_list = []
@@ -582,11 +582,11 @@ Unless your list is empty, do not include any headers before your numbered list 
 
         print(result)
         write_to_file(result + "\n", 'a')
-        print("\033[92m\033[1m" + "\n*****FAILSAFE TASK PROMPT*****" + "\033[0m\033[0m" + "\n" + prompt + "\n")
+        print("\033[92m\033[1m" + "\n*****FAILSAFE TASK PROMPT*****" + "\033[0m\033[0m" + prompt + "\n")
         write_to_file("\n*****FAILSAFE TASK PROMPT*****\n" + prompt + "\n", 'a')
-        response = openai_call(prompt, max_tokens=2000)[0:int(LLAMA_CONTEXT)]
-        print("\033[92m\033[1m" + "\n*****FAILSAFE TASK RESULT*****" + "\033[0m\033[0m" + "\n" + result + "\n")
-        write_to_file("\n*****FAILSAFE TASK RESULT*****\n" + result + "\n", 'a')
+        response = openai_call(prompt, max_tokens=2000)[0:LLAMA_CONTEXT]
+        print("\033[93m\033[1m" + "\n*****FAILSAFE TASK RESULT*****" + "\033[0m\033[0m" + "\n" + response + "\n")
+        write_to_file("\n*****FAILSAFE TASK RESULT*****\n" + response + "\n", 'a')
         new_tasks = response.split('\n')
         new_tasks_list = []
 
@@ -619,7 +619,7 @@ Do not remove any tasks. Return the ranked tasks as a numbered list in the forma
 The entries must be consecutively numbered, starting with 1. The number of each entry must be followed by a period.
 Do not include any headers before your ranked list or follow your list with any other output."""
 
-    print(f"\n****TASK PRIORITIZATION AGENT PROMPT****\n{prompt}")
+    print(f"\n****TASK PRIORITIZATION AGENT PROMPT****{prompt}")
     write_to_file(f"\n****TASK PRIORITIZATION AGENT PROMPT****\n{prompt}\n", 'a')
 
     if LLM_MODEL.startswith("llama"):
@@ -701,7 +701,7 @@ def execution_agent(objective: str, task: str) -> str:
 
         # Retrieve document embedding context via Q&A
         if INITIAL_TASK not in task:
-            print(f"\033[96m\033[1m\n*****DOCUMENT EMBEDDING CONTEXT*****\033[0m\033[0m\n")
+            print(f"\033[96m\033[1m\n*****DOCUMENT EMBEDDING CONTEXT*****\033[0m\033[0m")
             write_to_file(f"\n*****DOCUMENT EMBEDDING CONTEXT*****\n", 'a')
             res = qa(doc_query)
             answer, docs = res['result'], [] if args.hide_source else res['source_documents']
@@ -917,8 +917,8 @@ def main():
 
                 # Normal procedure with enriched result storage and then create new tasks
                 if not next_task_flag or len(result) > 10:
-                    print(f'Task result is OK -> Continue with result storage...')
-                    write_to_file(f'Task result is OK -> Continue with result storage...\n', 'a')
+                    print(f'\nTask result is OK -> Continue with result storage...')
+                    write_to_file(f'\nTask result is OK -> Continue with result storage...\n', 'a')
                     # Step 3: Enrich result and store in the results storage
                     #print(f"\nUpdate embedded vector store with result: {result}")
                     enriched_result = {
