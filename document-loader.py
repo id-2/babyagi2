@@ -35,7 +35,7 @@ load_dotenv()
 
 
 # Load environment variables
-persist_directory = os.environ.get('DOC_PERSIST_DIRECTORY')
+persist_directory = os.environ.get('DOC_PERSIST_STORAGE')
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
 embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME')
 chunk_size = 500
