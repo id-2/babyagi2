@@ -8,6 +8,7 @@
   - Enhancement of agent prompts for Llama with limited context and optimizations as e.g. limtation of context length
 - With smart internet search as extensions
   - Smart search is based on BabyCatAGI implementation
+  - Agent prompt adapted for LLM reson on its own when to trigger internet search
   - Llama support has been added
 - New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
   - The main functionality from file privateGPT.py has been integrated in BabyAGI
