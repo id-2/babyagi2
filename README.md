@@ -1,7 +1,7 @@
 ************************************************************
 # BabyAGI-Llama: Optimized for running completely local...
 #### ***Does run continuously with a 7B-lama (e.g. wizardLM-7B), processing the task list, and (mostly) not getting stuck in loops or aborting prematurely***
-#### ***Extensions for smart internet search with LLM summary creation and document embedding with Q&A retrieval in langchain***
+#### ***Extensions for smart internet search with LLM summary creation (based on BabyCatAGI implementation) and document embedding with Q&A retrieval in langchain using code from the popular repo 'privateGPT'***
 ************************************************************
 - Enhancement for Llama models with several new parameters, safety mechanisms and context truncation
   - Refinement of Llama setup with new parameters (added to .env file)
@@ -15,11 +15,11 @@
   - Document loader as separate script (document-loader.py)
   - Documents in subfolder "source_documents" are loaded and embedded in chromadb
   - Many thanks to https://github.com/imartinez for the great work!
-- Adding of simple write functionality for continuous terminal output to txt-file
+- Adding of simple write functionality for continuous terminal output to .txt-file
 - Many minor optimizations/beautifications to the original code
 ************************************************************
 
-The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad, what takes time is the summarization of internet search results. But the smart internet search is a great improvement in general and helps the 7B-Llama not to get stuck. The failsafe mechanisms for Llama (see parameter LLAMA_FAILSAFE) are still experimental, but help to keep the system running when context is lost by re-iterating step(s).
+The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. But the smart internet search is a great improvement in general and helps the 7B-Llama not to get stuck. The failsafe mechanisms for Llama (see parameter LLAMA_FAILSAFE) are still experimental, but help to keep the system running when context is lost by re-iterating step(s). Most important parameters is the context limit (LLAMA_CONTEXT).
 
 Try for yourself... :-)
 
