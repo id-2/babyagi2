@@ -2,6 +2,7 @@
 
 # The embedded document Q&A retrieval functionality is from: https://github.com/imartinez/privateGPT.git
 # The main functionality from file privateGPT.py has been integrated in BabyAGI
+# File document-loader.py loads all documents from subfolder 'source_documents' and embedds them in chroma vector store
 # Many thanks to https://github.com/imartinez for the great work!
 
 from dotenv import load_dotenv
@@ -127,7 +128,8 @@ if ENABLE_DOCUMENT_EXTENSION:
         import argparse
 
         embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME")
-        persist_directory = os.environ.get('DOC_PERSIST_STORAGE')
+        embeddings_temperature = float(os.environ.get("EMBEDDINGS_TEMPERATURE", 0.8))
+        persist_directory = os.environ.get('DOC_STORE_NAME')
         model_type = os.environ.get('EMBEDDINGS_MODEL_TYPE')
         model_path = os.environ.get('EMBEDDINGS_MODEL_PATH')
         model_n_ctx = os.environ.get('LLAMA_CTX_MAX')
@@ -162,9 +164,9 @@ if ENABLE_DOCUMENT_EXTENSION:
         # Prepare the LLM
         match model_type:
             case "LlamaCpp":
-                llm = LlamaCpp(model_path=model_path, n_ctx=model_n_ctx, callbacks=callbacks, verbose=False)
+                llm = LlamaCpp(model_path=model_path, n_ctx=model_n_ctx, callbacks=callbacks, verbose=False, temperature=embeddings_temperature)
             case "GPT4All":
-                llm = GPT4All(model=model_path, n_ctx=model_n_ctx, backend='gptj', callbacks=callbacks, verbose=False)
+                llm = GPT4All(model=model_path, n_ctx=model_n_ctx, backend='gptj', callbacks=callbacks, verbose=False, temp=embeddings_temperature)
             case _default:
                 print(f"Model {model_type} not supported!")
                 exit;
@@ -569,14 +571,10 @@ Unless your list is empty, do not include any headers before your numbered list 
         print(f'\nContext has been lost and task creation prompt or response is truncated,... create failsafe prompt and request response.\n')
         write_to_file(f'\nContext has been lost and task creation prompt or response is truncated,... create failsafe prompt and request response.\n', 'a')
 
-        if not ENABLE_SEARCH_EXTENSION:
-            internet_prompt= ""
-            internet_result = ""
-
-        if search_result:
-            result = internet_result
-        elif ENABLE_SEARCH_EXTENSION:
-            result, next_task_flag = llama_failsafe_routine(internet_result, search_result)
+        if ENABLE_SEARCH_EXTENSION:
+            if task_description == "":
+                task_description = INITIAL_TASK + " for objective: " + objective
+            result, next_task_flag = llama_failsafe_routine(task_description, internet_result, search_result)
         else:
             result = execution_agent(OBJECTIVE, task_description)
 
@@ -696,14 +694,17 @@ def execution_agent(objective: str, task: str) -> str:
 
     if ENABLE_DOCUMENT_EXTENSION:
         doc_context = ""
-        doc_query = task
         doc_length = int(LLAMA_CONTEXT/2)
+        query = f"Consider the length limit of {doc_length} characters for your response on the following query: {task}\nYour response: "
 
         # Retrieve document embedding context via Q&A
-        if INITIAL_TASK not in task:
-            print(f"\033[96m\033[1m\n*****DOCUMENT EMBEDDING CONTEXT*****\033[0m\033[0m")
-            write_to_file(f"\n*****DOCUMENT EMBEDDING CONTEXT*****\n", 'a')
-            res = qa(doc_query)
+        if INITIAL_TASK in task:
+            query = ""
+
+        print(f"\033[96m\033[1m\n*****DOCUMENT EMBEDDING CONTEXT*****\033[0m\033[0m")
+        write_to_file(f"\n*****DOCUMENT EMBEDDING CONTEXT*****\n", 'a')
+        if query:
+            res = qa(query)
             answer, docs = res['result'], [] if args.hide_source else res['source_documents']
             if LLM_MODEL.startswith("llama"):
                 if answer:
@@ -718,17 +719,13 @@ def execution_agent(objective: str, task: str) -> str:
     if context:
         prompt += 'Take into account these previously completed tasks:' + '\n'.join(context)
     if ENABLE_DOCUMENT_EXTENSION and doc_context:
-        prompt += f'Take into account the context from document embedding vector store: {doc_context}'
+        prompt += f'Consider the answer on the task from related document embedding query: {doc_context}'
     if ENABLE_SEARCH_EXTENSION:
-        prompt += f'\nDo your best to complete the task, which means to provide a useful answer for a human. Responding with the task content itself, a variation of it or vague suggestions, is not useful as well. In this case assume that internet search is required.'
+        #prompt += f'\nDo your best to complete the task and provide a useful answer. Responding with the task content itself, a variation of it or vague suggestions, is not #useful as well. In this case assume that internet search is required.'
         prompt += f'\nIf internet search is required to complete the task, respond with "Internet search request: " and redraft the task to an optimal concise internet search request.'
     prompt += f'\n\nYour task: {task}\nYour response: '
 
-    if LLM_MODEL.startswith("llama"):
-        result = openai_call(prompt, max_tokens=2000)[0:int(LLAMA_CONTEXT)]
-    else:
-        result = openai_call(prompt, max_tokens=2000)
-    return result
+    return openai_call(prompt, max_tokens=2000)
 
 
 # Get the top n completed tasks for the objective
@@ -752,9 +749,9 @@ def context_agent(query: str, top_results_num: int):
 
 # Check if google needs to be accessed, based on the the text in last completed task result
 def check_search_request(result: str, task: str):
-    lines = result.split("\n")
     search_request = ""
     prompt = ""
+    lines = result.split("\n")
     result = ""
     for l in lines:
         if "search request: " in l:
@@ -822,7 +819,7 @@ def check_search_request(result: str, task: str):
 
 
 # Llama failsafe routine (create new prompt with internet search prompt/results and send prompt)
-def llama_failsafe_routine(internet_result: str, search_result: str):
+def llama_failsafe_routine(task: str, internet_result: str, search_result: str):
     print('\nTruncated task result,... formulate a new prompt with internet search prompt & results and send prompt.')
     write_to_file('\nTruncated task result,... formulate a new prompt with internet search prompt & results and send prompt.', 'a')
     next_task_flag = False
@@ -838,11 +835,11 @@ def llama_failsafe_routine(internet_result: str, search_result: str):
     
     if ENABLE_DOCUMENT_EXTENSION:
         doc_context = ""
-        doc_query = objective
         doc_length = int(LLAMA_CONTEXT/2)
 
         # Get the answer from the chain
-        res = qa(doc_query)
+        query = f"Consider the length limit of {doc_length} characters for your response on the following query: {task}\nYour response: "
+        res = qa(query)
         answer, docs = res['result'], [] if args.hide_source else res['source_documents']
 
         # Failsafe for llama with limited context length
@@ -897,23 +894,19 @@ def main():
             write_to_file("\n*****NEXT TASK*****\n" + str(task["task_name"]) + "\n", 'a')
 
             # Send to execution function to complete the task based on the context
-            if LLM_MODEL.startswith("llama"):
-                result = execution_agent(OBJECTIVE, str(task["task_name"]))[0:LLAMA_CONTEXT]
-            else:
-                result = execution_agent(OBJECTIVE, str(task["task_name"]))
+            result = execution_agent(OBJECTIVE, str(task["task_name"]))
             print("\033[93m\033[1m" + "\n*****TASK RESULT*****" + "\033[0m\033[0m\n" + result)
             write_to_file("\n*****TASK RESULT*****\n" + f"{result}\n", 'a')
 
             # Step 2: Check if internet search is required for conclusion of this task
             internet_prompt = ""
+            internet_result = ""
             search_result = ""
             internet_prompt, internet_result, search_result = check_search_request(result, str(task["task_name"]))
-            if search_result:
-                result = internet_result
 
             # Failsafe for llama with limited context length
             if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(result) < int(LLAMA_CONTEXT/10):
-                result, next_task_flag = llama_failsafe_routine(result, search_result)
+                result, next_task_flag = llama_failsafe_routine(str(task["task_name"]), internet_result, search_result)
 
                 # Normal procedure with enriched result storage and then create new tasks
                 if not next_task_flag or len(result) > 10:
@@ -977,7 +970,7 @@ def main():
             if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and llama_failsafe_counter < 2:
                 llama_failsafe_counter+=1
                 print(f"\nFailsafe triggered at exit,... trigger failsafe routine. Failsafe counter: {llama_failsafe_counter}")
-                result, next_task_flag = llama_failsafe_routine(result, search_result)
+                result, next_task_flag = llama_failsafe_routine(str(task["task_name"]), result, search_result)
 
                 # Step 3: Enrich result and store in the results storage
                 #print(f"\nUpdate embedded vector store with result: {result}")
