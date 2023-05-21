@@ -44,6 +44,8 @@ You can find precompiled .bin files of popular Llamas for example in this repo: 
 The models wizardLM-7B and vicuna-7B do work best for me on MacBook M1 with 16GB RAM. Unfortunately I am not able to persuade a 13B model to run with a reasonable token rate. Runs at something like 1 token per minute.
 
 ********************
+... from here onwards the original readme from main branch.
+********************
 
 # Translations:
 
