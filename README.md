@@ -1,8 +1,8 @@
 ************************************************************
-# BabyAGI-Llama: Optimized for running completely local...
-#### ***Does run continuously with a 7B-lama (e.g. wizardLM-7B), processing the task list, and (mostly) not getting stuck in loops or aborting prematurely***
-#### ***Extensions for smart internet search with LLM summary creation (based on BabyCatAGI implementation) and document embedding with Q&A retrieval in langchain using code from the popular repo 'privateGPT'***
-
+# BabyAGI-Llama: Optimized for running 100% local...
+### ***Internet search w/o API key and LLM powered summary creation (based on BabyCatAGI implementation)***
+### ***Document embedding with Q&A retrieval in langchain using code from the popular repo 'privateGPT'***
+#### ***--- Does run continuously with 7B-Llama (e.g. wizardLM-7B), processing the task list, and (mostly) not getting stuck in loops or aborting prematurely ---***
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Llama_Running.jpeg)
 ************************************************************
 ### What has been adapted/added/optimized?
@@ -30,7 +30,7 @@ The document embedding functionality from privateGPT is awesome. Document loadin
 
 You might ask the question: "Why using a Llama when OpenAI and its excellent models are available?"
 
-I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using gpt-3.5-turbo. With new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits. The idea to have.
+I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using gpt-3.5-turbo. With new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits...
 
 ************************************************************
 ### LLAMA models
