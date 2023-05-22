@@ -1,8 +1,8 @@
 ************************************************************
-# BabyAGI-Llama: Optimized for running 100% locally...
+# BabyAGI-Llama: Optimized for running 100% local, using Llama models for all actions
 ### ***Internet search w/o API key and LLM powered summary creation (based on BabyCatAGI implementation)***
 ### ***Document embedding with Q&A retrieval in langchain using code from the popular repo 'privateGPT'***
-#### ***--- Does run continuously with 7B-Llama (e.g. wizardLM-7B), processing the task list, and not getting stuck in loops or aborting prematurely ---***
+#### ***--- Running continuously with a 7B-Llama,... creating & processing the task list, analysing web scrape results, doing Q&A retrieval with embedded document store, all in parallel and w/o getting stuck in loops or aborting prematurely. This is pretty awesome! 😋 ---***
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Llama_Running.jpeg)
 
