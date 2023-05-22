@@ -1,23 +1,26 @@
 ************************************************************
-# BabyAGI-Llama: Optimized for running 100% local...
+# BabyAGI-Llama: Optimized for running 100% locally...
 ### ***Internet search w/o API key and LLM powered summary creation (based on BabyCatAGI implementation)***
 ### ***Document embedding with Q&A retrieval in langchain using code from the popular repo 'privateGPT'***
-#### ***--- Does run continuously with 7B-Llama (e.g. wizardLM-7B), processing the task list, and (mostly) not getting stuck in loops or aborting prematurely ---***
+#### ***--- Does run continuously with 7B-Llama (e.g. wizardLM-7B), processing the task list, and not getting stuck in loops or aborting prematurely ---***
+
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Llama_Running.jpeg)
+
 ************************************************************
 ### What has been adapted/added/optimized?
 
 - Enhancement for Llama models with several new parameters, safety mechanisms and context truncation
   - Refinement of Llama setup with new parameters (added to .env file)
-  - Enhancement of agent prompts for Llama with limited context and optimizations as e.g. limtation of context length
-- With smart internet search as extensions
-  - Smart search is based on BabyCatAGI implementation
-  - Agent prompt adapted for LLM reson on its own when to trigger internet search
-  - Llama support has been added
+  - Enhancement of all agent prompts for Llama with limited context and optimizations as e.g. limtation of context length
+- Smart internet search with summary creation as extensions
+  - The functionality is based on BabyCatAGI, Llama support has been added
+  - Supported is Google CSE, SERPAPI and browser based search using duckduckgo, hence no API key is required
+  - Execution agent prompt has been adapted for LLM reasoning when to trigger internet search
+  - The scrape results are evaluated and summarized by LLM
 - New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
   - The main functionality from file privateGPT.py has been integrated in BabyAGI
   - Document loader as separate script (document-loader.py)
-  - Documents in subfolder "source_documents" are loaded and embedded in chromadb
+  - Documents in subfolder "source_documents" are loaded and embedded in a chromadb vector store
   - Many thanks to https://github.com/imartinez for the great work!
 - Adding of simple write functionality for continuous terminal output to .txt-file
 - Many minor optimizations/beautifications to the original code
@@ -26,11 +29,11 @@
 
 The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. But the smart internet search is a great improvement in general and helps the 7B-Llama not to get stuck. The failsafe mechanisms for Llama (see parameter LLAMA_FAILSAFE) are still experimental, but help to keep the system running when context is lost by re-iterating step(s). Most important parameters is the context limit (LLAMA_CONTEXT).
 
-The document embedding functionality from privateGPT is awesome. Document loading is super quick and the Q&A retrieval with 7B-Llama is a bit slow but acceptable. With the extension enabled and enough data embedded, the task process with 7B-Llama works very stable. Anyhow, try for yourself and expect some heavy hallucinations... :-D
+The document embedding functionality from privateGPT is awesome. Document loading is super quick. The Q&A retrieval with 7B-Llama is a bit slow but acceptable. With the extension enabled and enough data embedded, the task process with 7B-Llama works very stable. Anyhow, try for yourself and expect some heavy hallucinations... :-D
 
 You might ask the question: "Why using a Llama when OpenAI and its excellent models are available?"
 
-I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using gpt-3.5-turbo. With new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits...
+I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using mostly gpt-3.5-turbo and rarely gpt-4. With new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits...
 
 ************************************************************
 ### LLAMA models
