@@ -115,9 +115,8 @@ if DOTENV_EXTENSIONS:
 # TODO: This is a bit of a hack, but it works for now
 if ENABLE_REPORT_EXTENSION:
     REPORT_FILE = os.getenv("REPORT_FILE", "report.txt")
-    REPORT_PROMPT = os.getenv("REPORT_PROMPT", "")
-    REPORT_TITLE = os.getenv("REPORT_TITLE", "Report")
-    OBJECTIVE_ADDER = os.getenv("OBJECTIVE_ADDER", "")
+    INSTRUCTION = os.getenv("INSTRUCTION", "")
+    ACTION = os.getenv("ACTION", "")
 
     # Write to summary file
     def write_report(file: str, text: str, mode: chr):
@@ -144,6 +143,9 @@ if ENABLE_REPORT_EXTENSION:
             text = ""
             if "Report-Tag" in result:
                 text = result.split("Report-Tag")[0]
+                text2 = result.split("Report-Tag")[1]
+                if text2:
+                    text = text2
             elif "Short Story:" in result:
                 text = result.split("Short Story:")[1]
             if text:
@@ -155,11 +157,11 @@ if ENABLE_REPORT_EXTENSION:
     def check_report_file(file: str):
         try:
             with open(file, 'r') as f:
-                print(f"Using report file: '{REPORT_FILE}'. File already exists. Text will be appended to the file...")
+                print(f"Use existing report file. Text will be appended to the file...")
         except:
             with open(file, 'w') as f:
-                print(f"Using report file: '{REPORT_FILE}'. File does not exists, creating file...")
-                f.write(f"In this file BabyAGI stores the {REPORT_TITLE}, as configured in .env file under ENABLE_REPORT_EXTENSION.\nThe output is derived step by step and new information is appended to the file...\n\n")
+                print(f"Reoort file does not exists, creating file...")
+                f.write(f"In this file BabyAGI stores information, as configured in .env file under ENABLE_REPORT_EXTENSION.\nThe output is derived step by step and new information is appended to the file...\n\n")
         
 
 # Internet smart search (based on BabyCatAGI)
@@ -335,8 +337,10 @@ print("\033[94m\033[1m" + "\n*****OBJECTIVE*****" + "\033[0m\033[0m")
 print(f"{OBJECTIVE}")
 print_to_file("\n*****OBJECTIVE*****\n" + f"{OBJECTIVE}\n", mode=check_file())
 if ENABLE_REPORT_EXTENSION:
-    print("\033[93m\033[1m" + "\nObjective adder:" + "\033[0m\033[0m" + f" {OBJECTIVE_ADDER}")
-    print_to_file("\nObjective adder:" + f" {OBJECTIVE_ADDER}" + "\n", 'a')
+    print("\033[93m\033[1m" + "\nAction:" + "\033[0m\033[0m" + f" {ACTION}")
+    print_to_file("\nObjective adder:" + f" {ACTION}" + "\n", 'a')
+    print("\033[93m\033[1m" + "\nInstruction:" + "\033[0m\033[0m" + f" {INSTRUCTION}")
+    print_to_file("\nReport title:" + f" {INSTRUCTION}" + "\n", 'a')
           
 if not JOIN_EXISTING_OBJECTIVE:
     print("\033[93m\033[1m" + "\nInitial task:" + "\033[0m\033[0m" + f" {INITIAL_TASK}")
@@ -345,11 +349,6 @@ else:
     print("\033[93m\033[1m" + f"\nJoining to help the objective" + "\033[0m\033[0m")
     print_to_file(f"\nJoining to help the objective", 'a')
 
-if ENABLE_REPORT_EXTENSION:
-    print("\033[93m\033[1m" + "\nReport title:" + "\033[0m\033[0m" + f" {REPORT_TITLE}")
-    print_to_file("\nReport title:" + f" {REPORT_TITLE}" + "\n", 'a')
-    print("\033[93m\033[1m" + "\nReport prompt:" + "\033[0m\033[0m" + f" {REPORT_PROMPT}")
-    print_to_file("\nReport title:" + f" {REPORT_PROMPT}" + "\n", 'a')
 
 # Llama embedding function
 class LlamaEmbeddingFunction(EmbeddingFunction):
@@ -630,13 +629,13 @@ The number of each entry must be followed by a period. If your list is empty, wr
 Unless your list is empty, do not include any headers before your numbered list or follow your numbered list with any other output.
 \nYour response: """
 
-    print(f"\n*****TASK CREATION AGENT PROMPT****{prompt}")
+    print(f"\n*****TASK CREATION AGENT PROMPT****\n{prompt}")
     print_to_file(f"\n****TASK CREATION AGENT PROMPT****\n{prompt}\n", 'a')
     response = openai_call(prompt, max_tokens=2000)
     if LLM_MODEL.startswith("llama") and len(response) > LLAMA_CONTEXT:
         response = response[0:LLAMA_CONTEXT]
 
-    print(f"\n****TASK CREATION AGENT RESPONSE****{response}")
+    print(f"\n****TASK CREATION AGENT RESPONSE****\n{response}")
     print_to_file(f"\n****TASK CREATION AGENT RESPONSE****\n{response}\n", 'a')
     new_tasks = response.split('\n')
     new_tasks_list = []
@@ -653,12 +652,27 @@ Unless your list is empty, do not include any headers before your numbered list 
         else:
             result = execution_agent(OBJECTIVE, task_description)
 
-        print(result)
-        print_to_file(result + "\n", 'a')
-        check_report(result)
-        print("\033[92m\033[1m" + "\n*****FAILSAFE TASK EXECUTION*****\n" + "\033[0m\033[0m" + result + "\n")
-        print_to_file("\n*****FAILSAFE TASK EXECUTION*****\n" + result + "\n", 'a')
+        prompt = f"You are to use the result from an execution agent to create new tasks with the following objective: {objective}\n"
+        prompt += f"The last completed task has the result: {result}"
+        prompt += f"This result was based on this task description: {task_description}.\n"
+
+        if task_list:
+            prompt += f"These are incomplete tasks: {', '.join(task_list)}\n"
+        prompt += "Based on the result, return a list of tasks to be completed in order to meet the objective. "
+        if task_list:
+            prompt += "These new tasks must not overlap with incomplete tasks. "
+
+        prompt += """
+        Return one task per line in your response. The result must be a numbered list in the format:
+        
+        #. First task
+        #. Second task
+        
+        The number of each entry must be followed by a period. If your list is empty, write "There are no tasks to add at this time."
+        Unless your list is empty, do not include any headers before your numbered list or follow your numbered list with any other output.
+        \nYour response: """
         response = openai_call(prompt, max_tokens=2000)
+
         if len(response) > LLAMA_CONTEXT:
             response = response[0:LLAMA_CONTEXT]
         print("\033[93m\033[1m" + "\n*****FAILSAFE TASK CREATION*****\n" + "\033[0m\033[0m" + "\n" + response + "\n")
@@ -697,13 +711,9 @@ Do not include any headers before your ranked list or follow your list with any 
 
     print(f"\n****TASK PRIORITIZATION AGENT PROMPT****\n{prompt}")
     print_to_file(f"\n****TASK PRIORITIZATION AGENT PROMPT****\n{prompt}\n", 'a')
-
-    if LLM_MODEL.startswith("llama"):
-        response = openai_call(prompt, max_tokens=2000)
-        if len(response) > LLAMA_CONTEXT:
-            response = response[0:LLAMA_CONTEXT]
-    else:
-        response = openai_call(prompt, max_tokens=2000)
+    response = openai_call(prompt, max_tokens=2000)
+    if LLM_MODEL.startswith("llama") and len(response) > LLAMA_CONTEXT:
+        response = response[0:LLAMA_CONTEXT]
 
     # Llama failsafe routine (Create new tasks based on last task and add to task_storage)
     if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(response) < int(LLAMA_CONTEXT/10):
@@ -799,16 +809,16 @@ def execution_agent(objective: str, task: str) -> str:
             print_to_file(doc_context + "\n\n", 'a')
             print()
 
-    if ENABLE_REPORT_EXTENSION:
-        objective = objective + " " + OBJECTIVE_ADDER + " " + REPORT_PROMPT
-
-    prompt = f'Perform one task based on the following objective: {objective}\nYour task: {task}\n'
+    prompt = f'Perform one task based on the following objective: {OBJECTIVE}\nYour task: {task}\n'
+    if ENABLE_REPORT_EXTENSION and INITIAL_TASK not in task:
+        prompt += f'Consider the following as the action which shall be executed when the objective has been achieved, ignore for task planning purposes: {ACTION}\n'
+        prompt += f'Consider the following additional instructions for execution of the action, ignore for other purposes: {INSTRUCTION}\n'
     if context:
         prompt += 'Take into account these previously completed tasks:' + '\n'.join(context)
     if ENABLE_DOCUMENT_EXTENSION and doc_context:
         prompt += f'\nConsider the answer on the task from related document embedding query: {doc_context}'
     if ENABLE_SEARCH_EXTENSION:
-        #prompt += f'\nDo your best to complete the task and provide a useful answer. Responding with the task content itself, a variation of it or vague suggestions, is not #useful as well. In this case assume that internet search is required.'
+        #prompt += f'\nDo your best to complete the task and provide a useful answer. Responding with the task content itself, a variation of it or vague suggestions, is not useful as well. In this case assume that internet search is required.'
         prompt += f'\nIf internet search is required to complete the task, add "Internet search request: " to the response and add the task redrafted to an optimal concise internet search request.'
     prompt += f'\n\nYour response: '
     return openai_call(prompt, max_tokens=2000)
@@ -912,7 +922,7 @@ def llama_failsafe_agent(task: str, internet_result: str, search_result: str):
                 task = INITIAL_TASK + " for the objective: " + OBJECTIVE
             prompt, result, search_result = internet_agent(internet_result, task)
 
-            print('\nInternet search result not available,... repeat last task: ' + task)
+            print('\nInternet search result not available,... repeat last task: \n' + task)
         else:
             print('\nInternet search result not available and task is empty, use initial task and objective for new prompt.')
             objective = INITIAL_TASK + " for the objective: " + OBJECTIVE
@@ -955,9 +965,8 @@ def llama_failsafe_agent(task: str, internet_result: str, search_result: str):
         result = result[0:LLAMA_CONTEXT]
     print("\033[92m\033[1m" + "\n*****FAILSAFE TASK EXECUTION*****\n" + "\033[0m\033[0m" + result + "\n")
     print_to_file("\n*****FAILSAFE TASK EXECUTION*****\n" + result + "\n", 'a')
-    print(result)
-    print_to_file(result, 'a')
-    check_report(result)
+    if ENABLE_REPORT_EXTENSION:
+        check_report(result)
 
     return result, next_task_flag
 
@@ -1002,45 +1011,46 @@ def main():
             search_result = ""
             internet_prompt, internet_result, search_result = internet_agent(result, str(task["task_name"]))
 
-            # Failsafe for llama with limited context length
-            if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(result) < int(LLAMA_CONTEXT/10) and len(internet_result) < int(LLAMA_CONTEXT/10):
-                result, next_task_flag = llama_failsafe_agent(str(task["task_name"]), internet_result, search_result)
+            if internet_result:
+                result = internet_result
+            else:
+                # Failsafe for llama with limited context length
+                if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(result) < int(LLAMA_CONTEXT/10):
+                    result, next_task_flag = llama_failsafe_agent(str(task["task_name"]), internet_result, search_result)
 
-                # Normal procedure with enriched result storage and then create new tasks
-                if not next_task_flag or len(result) > int(LLAMA_CONTEXT/100):
-                    print(f'\nTask result is OK -> Continue with result storage...')
-                    print_to_file(f'\nTask result is OK -> Continue with result storage...\n', 'a')
-                    # Step 3: Enrich result and store in the results storage
-                    #print(f"\nUpdate embedded vector store with result: {result}")
-                    enriched_result = {
-                        "data": result
-                    }
-                    result_id = f"result_{task['task_id']}"
-                    results_storage.add(task, result, result_id)
+                    # Normal procedure with enriched result storage and then create new tasks
+                    if not next_task_flag or len(result) > int(LLAMA_CONTEXT/100):
+                        print(f'\nTask result is OK -> Continue with result storage...')
+                        print_to_file(f'\nTask result is OK -> Continue with result storage...\n', 'a')
+                        # Step 3: Enrich result and store in the results storage
+                        #print(f"\nUpdate embedded vector store with result: {result}")
+                        enriched_result = {
+                            "data": result
+                        }
+                        result_id = f"result_{task['task_id']}"
+                        results_storage.add(task, result, result_id)
 
-                # Do not execute step 3 (enriched result storage), but select next task and execute step 4 (create new tasks)
-                else:
-                    print(f'\nTask result is incomprehensible,... select next task.\n')
-                    print_to_file(f'\nTask result is incomprehensible,... select next task.\n', 'a')
-                    task.update({"task_id": tasks_storage.next_task_id()})
+                    # Do not execute step 3 (enriched result storage), but select next task and execute step 4 (create new tasks)
+                    else:
+                        print(f'\nTask result is incomprehensible,... select next task.\n')
+                        print_to_file(f'\nTask result is incomprehensible,... select next task.\n', 'a')
+                        task.update({"task_id": tasks_storage.next_task_id()})
 
             # Step 3: Enrich result and store in the results storage
             # This is where you should enrich the result if needed
-            else:
-                if internet_result:
-                    result = internet_result
-                #print(f"\nUpdate embedded vector store with result: {result}")
-                enriched_result = {
-                    "data": result
-                }
-                # extract the actual result from the dictionary
-                # since we don't do enrichment currently
-                # vector = enriched_result["data"]
+            #print(f"\nUpdate embedded vector store with result: {result}")
+            enriched_result = {
+                "data": result
+            }
+            # extract the actual result from the dictionary
+            # since we don't do enrichment currently
+            # vector = enriched_result["data"]
 
-                result_id = f"result_{task['task_id']}"
-                results_storage.add(task, result, result_id)
+            result_id = f"result_{task['task_id']}"
+            results_storage.add(task, result, result_id)
 
-                # Check if result includes output to file
+            # Check if result includes output to file
+            if ENABLE_REPORT_EXTENSION:
                 check_report(result)
 
             # Step 4: Create new tasks and re-prioritize task list
@@ -1083,7 +1093,8 @@ def main():
                 results_storage.add(task, result, result_id)
 
                 # Check if result includes output to file
-                check_report(result)
+                if ENABLE_REPORT_EXTENSION:
+                    check_report(result)
 
                 if tasks_storage.is_empty():
                     print('Task storage is empty, ...create new tasks.')
