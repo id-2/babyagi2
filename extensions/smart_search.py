@@ -5,14 +5,32 @@ from serpapi import GoogleSearch
 import os
 import re
 import importlib
+import random
 
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36"
 }
 
+USER_AGENTS = [
+    {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.143 Safari/537.36 OPR/23.0.1522.60"},  # Opera on Windows
+    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36"},  # Chrome on Windows
+    {"User-Agent": "Mozilla/5.0 (Linux; Android 11; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Mobile Safari/537.36"},  # Chrome on Android
+    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0"},  # Firefox on Windows
+    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"},  # Chrome on Windows
+    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36"},  # Chrome on Mac
+    {"User-Agent": "Mozilla/5.0 (Linux; Android 11; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Mobile Safari/537.36"},  # Chrome on Android
+    {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"},  # Safari on iOS
+    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Safari/605.1.15"},  # Safari on Mac
+    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.48"},  # Edge on Windows
+    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0"},  # Firefox on Windows
+    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0"},  # Firefox on Mac
+    {"User-Agent": "Mozilla/5.0 (Linux; Android 11; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/14.0 Chrome/90.0.4430.210 Mobile Safari/537.36"}  # Samsung Internet on Android
+]
+
 # OS configuration
 OBJECTIVE = os.getenv("OBJECTIVE", "")
+INITIAL_TASK = os.getenv("INITIAL_TASK", "")
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY", "")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID", "")
@@ -22,6 +40,11 @@ SCRAPE_LENGTH = int(os.getenv("SCRAPE_LENGTH", 5000))
 SUMMARY_CTX_MAX = int(os.getenv("SUMMARY_CTX_MAX", 1024))
 LLAMA_THREADS_NUM = int(os.getenv("LLAMA_THREADS_NUM", 8))
 SUMMARY_TEMPERATURE = float(os.getenv("SUMMARY_TEMPERATURE", 0.7))
+
+# Report extension
+ENABLE_REPORT_EXTENSION = os.getenv("ENABLE_REPORT_EXTENSION", "false").lower() == "true"
+INSTRUCTION = os.getenv("INSTRUCTION", "")
+ACTION = os.getenv("ACTION", "")
 
 
 # API function: Search with SERPAPI, Google CSE or with browser (with fallback strategy to browser mode)
@@ -71,13 +94,13 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
                     print("Switching to browser mode...")
     
         print("\033[90m\033[3m" + "Completed search. Now scraping results...\n\033[0m")
-        write_to_file("Completed search. Now scraping results...\n", 'a')
+        print_to_file("Completed search. Now scraping results...\n", 'a')
         links = []
         for result in search_results:
             links.append(result['link'])
             print("\033[90m\033[3m" + f"Webpage URL: {result['link']}\033[0m")
 
-    # SerpAPI search
+    # SERPAPI search
     if mode == "serpapi":
         search_params = {
             "engine": "google",
@@ -97,7 +120,7 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
 
         search_results = simplify_search_results(search_results)
         print("\033[90m\033[3m" + "Completed search. Now scraping results...\033[0m")
-        write_to_file("Completed search. Now scraping results...\n", 'a')
+        print_to_file("Completed search. Now scraping results...\n", 'a')
         links = []
         for result in search_results:
             links.append(result.get('link'))
@@ -105,35 +128,38 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
     
     # Browser search
     if mode == "browser":
-        url = f"https://duckduckgo.com/html/?q={query}"
-        browser_header = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36"
-        }
-
-        search_results = requests.get(url, headers=browser_header, timeout=5)
-        if search_results.status_code == 200:
-            try:
-                soup = BeautifulSoup(search_results.text, 'html.parser')
-                links = []
-                i = int(0)
-                for result in soup.select("a.result__url"):
-                    url = result["href"]
-                    if url:
-                        links.append(url)
-                        print("\033[90m\033[3m" + f"Webpage URL: {url}\033[0m")
-                        i+=1
-                    if i >= num_extracts:
-                        break
+        access_counter = 0
+        while (access_counter < 3):
+            url = f"https://duckduckgo.com/html/?q={query}"
+            browser_header = random.choice(USER_AGENTS)
+            search_results = requests.get(url, headers=browser_header, timeout=5)
+            if search_results.status_code == 200:
+                try:
+                    soup = BeautifulSoup(search_results.text, 'html.parser')
+                    links = []
+                    i = int(0)
+                    for result in soup.select("a.result__url"):
+                        url = result["href"]
+                        if url:
+                            links.append(url)
+                            print("\033[90m\033[3m" + f"Webpage URL: {url}\033[0m")
+                            i+=1
+                        if i >= num_extracts:
+                            access_counter = 3
+                            break
+                    
+                    print("\033[90m\033[3m" + f"Completed search with {str(browser_header)}. Now scraping results...\n\033[0m")
+                    print_to_file(f"Completed search with {str(browser_header)}. Now scraping results...\n", 'a')
                 
-                print("\033[90m\033[3m" + f"Completed search with {str(browser_header)}. Now scraping results...\n\033[0m")
-                write_to_file(f"Completed search with {str(browser_header)}. Now scraping results...\n", 'a')
-            
-            except Exception as e:
-                print("\033[90m\033[3m" + f"Error while parsing HTML data: {e}\033[0m")
-                links = []
+                except Exception as e:
+                    print("\033[90m\033[3m" + f"Error while parsing HTML data: {e}\033[0m")
+                    access_counter = 3
+                    links = []
+                    search_results = []
+            else:
+                print(f"Request status code not OK: {search_results.status_code} with {browser_header}")
+                access_counter+=1
                 search_results = []
-        else:
-            print(f"Request status code NOK: {search_results.status_code}")
 
     # Error handling
     if mode not in ["google", "serpapi", "browser"]:
@@ -142,16 +168,19 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
     i = int(0)
     results=""
     # Scrape the search results
-    for result in search_results and links[i]:
-        print("\033[90m\033[3m" + f"Scraping '{links[i]}'...\033[0m")
-        write_to_file(f"Scraping '{links[i]}'...\n", 'a')
-        content = web_scrape_tool(links[i], task)
-        print("\033[90m\033[3m" + str(content)[0:CONTEXT_LENGTH] + "\n\033[0m")
-        write_to_file(str(content)[0:CONTEXT_LENGTH] + "\n", 'a')
-        results += str(content)[0:CONTEXT_LENGTH] + ". "
-        i+=1
-        if i >= num_extracts:
-            break
+    if search_results:
+        for result in search_results and links[i]:
+            print("\033[90m\033[3m" + f"Scraping '{links[i]}'...\033[0m")
+            print_to_file(f"Scraping '{links[i]}'...\n", 'a')
+            content = web_scrape_tool(links[i], task)
+            print("\033[90m\033[3m" + str(content) + "\n\033[0m")
+            print_to_file(str(content) + "\n", 'a')
+            results += str(content) + ". "
+            i+=1
+            if i >= num_extracts:
+                break
+    else:
+        print("\033[90m\033[3m" + "No search results found.\033[0m")
 
     return results
 
@@ -166,7 +195,7 @@ def can_import(module_name):
 
 
 # Write output to file
-def write_to_file(text: str, mode: chr):
+def print_to_file(text: str, mode: chr):
     with open('task_list.txt', mode) as f:
         f.write(text) 
 
@@ -194,7 +223,7 @@ def text_completion_tool(prompt: str):
             response = llm(prompt=prompt,
                             stop=["###"],
                             echo=False,
-                            temperature=0.2,
+                            temperature=0.5,
                             top_k=40,
                             top_p=0.95,
                             repeat_penalty=1.05,
@@ -240,7 +269,7 @@ def web_scrape_tool(url: str, task:str):
 
     text = extract_text(content)
     print("\033[90m\033[3m" + f"Scrape completed with length: {len(text)}. Now extracting relevant info with scrape length: {SCRAPE_LENGTH} and summary length: {CONTEXT_LENGTH}\033[0m")
-    write_to_file(f"Scrape completed with length: {len(text)}. Now extracting relevant info with scrape length: {SCRAPE_LENGTH} and summary length: {CONTEXT_LENGTH}\n", 'a')
+    print_to_file(f"Scrape completed with length: {len(text)}. Now extracting relevant info with scrape length: {SCRAPE_LENGTH} and summary length: {CONTEXT_LENGTH}\n", 'a')
     info = extract_relevant_info(OBJECTIVE, text[0:SCRAPE_LENGTH], task)
     links = extract_links(content)
 
@@ -273,7 +302,7 @@ def extract_text(content: str):
 
 
 def extract_relevant_info(objective, large_string, task):
-    chunk_size = int(CONTEXT_LENGTH*0.5)
+    chunk_size = int(CONTEXT_LENGTH)
     overlap = int(chunk_size*0.1)
     notes = ""
     
@@ -297,9 +326,14 @@ def extract_relevant_info(objective, large_string, task):
 
             for i in range(0, len(large_string), chunk_size - overlap):
                 chunk = large_string[i:i + chunk_size]
-                messages = f'Objective: {objective} Task: {task}\n'
-                messages += f'Analyze the following text and extract information relevant to the objective and task, and only relevant information to the objective and task. Consider incomprehensible information as not relevant. If there is no relevant information do not say that there is no relevant information related to our objective. ### Then, update or start our notes provided here (keep blank if currently blank or erase if notes is a string of keywords and not verbalized in sentences): {notes}. ### Text to analyze: {chunk}. ### Updated Notes: '
-                response = llm(prompt=messages[0:CONTEXT_LENGTH],
+                if ENABLE_REPORT_EXTENSION and INITIAL_TASK not in task:
+                    messages = f'Objective: {objective} Task: {task}\n'
+                    messages += f'Consider the following action which shall be executed based on the objective, ignore for creation of a task list: {ACTION}\n'
+                    messages += f'Consider the following instructions for execution of the action, ignore for creation of a task list: {INSTRUCTION}\n\n'
+                else:
+                    messages = f'Objective: {objective} Task: {task}\n\n'
+                messages += f'Analyze the following text and extract information relevant to the objective and task, and only relevant information to the objective and task. Consider incomprehensible information as not relevant. If there is no relevant information do not say that there is no relevant information related to our objective. ### Then, update or start our notes provided here (keep blank if currently blank): {notes}. ### Text to analyze (ignore text if it is a string of keywords and not verbalized in sentences): {chunk}. ### Updated Notes: '
+                response = llm(prompt=messages[0:SUMMARY_CTX_MAX],
                             stop=["###"],
                             echo=False,
                             temperature=SUMMARY_TEMPERATURE,
@@ -309,14 +343,14 @@ def extract_relevant_info(objective, large_string, task):
                             max_tokens=400)
                 
                 notes += response['choices'][0]['text'].strip()+". "
-                print(response['choices'][0]['text'].strip()+". ")
+                print(f"Search summary result for chunk '{i}':\n" + response['choices'][0]['text'].strip()+". ")
     
     # Otherwise setup GPT-3 model
     else:
         for i in range(0, len(large_string), chunk_size - overlap):
             chunk = large_string[i:i + chunk_size]
             messages = [
-                {"role": "system", "content": f"Objective: {objective}\nCurrent Task:{task}"},
+                {"role": "system", "content": f"Objective: {objective}\nCurrent Task:{task}\n"},
                 {"role": "user", "content": f"Analyze the following text and extract information relevant to our objective and current task, and only information relevant to our objective and current task. Consider incomprehensible information as not relevant. If there is no relevant information do not say that there is no relevant information related to our objective. ### Then, update or start our notes provided here (keep blank if currently blank): {notes}. ### Text to analyze: {chunk}. ### Updated Notes: "}
             ]
             response = openai.ChatCompletion.create(
@@ -328,6 +362,7 @@ def extract_relevant_info(objective, large_string, task):
                 temperature=0.7,
             )
             notes += response.choices[0].message['content'].strip()+". "
-            #print(response.choices[0].message['content'].strip()+". ")
+            #print(f"Search summary result for chunk '{i}':\n" + response['choices'][0]['text'].strip()+". ")
 
     return notes
+
