@@ -29,20 +29,22 @@ from chromadb.config import Settings
 # --------------------
 # Model: GPT, LLAMA, HUMAN, etc.
 LLM_MODEL = os.getenv("LLM_MODEL", os.getenv("OPENAI_API_MODEL", "gpt-3.5-turbo")).lower()
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", 2000))
 LLAMA_TEMPERATURE = float(os.getenv("LLAMA_TEMPERATURE", 0.9))
-LLAMA_CONTEXT = int(os.getenv("LLAMA_CONTEXT", 2000))
+LLAMA_CONTEXT = int(os.getenv("LLAMA_CONTEXT", 4000))
 LLAMA_MODEL_PATH = os.getenv("LLAMA_MODEL_PATH", "")
 LLAMA_CTX_MAX = int(os.getenv("LLAMA_CTX_MAX", 1024))
 LLAMA_THREADS_NUM = int(os.getenv("LLAMA_THREADS_NUM", 8))
-LLAMA_FAILSAFE = os.getenv("LLAMA_FAILSAFE", "false").lower() == "true"
+LLAMA_FAILSAFE = os.getenv("LLAMA_FAILSAFE", "true").lower() == "true"
 
 # Internet search key configuration
 ENABLE_SEARCH_EXTENSION = os.getenv("ENABLE_SEARCH_EXTENSION", "false").lower() == "true"
 
 # Document embedding vector store configuration
 ENABLE_DOCUMENT_EXTENSION = os.getenv("ENABLE_DOCUMENT_EXTENSION", "false").lower() == "true"
+ENABLE_DOC_UPDATE = os.getenv("ENABLE_DOC_UPDATE", "false").lower() == "true"
 
-# Output to file for report
+# Output step-by-step report to file
 ENABLE_REPORT_EXTENSION = os.getenv("ENABLE_REPORT_EXTENSION", "false").lower() == "true"
 
 # API keys
@@ -139,25 +141,35 @@ if ENABLE_REPORT_EXTENSION:
 
     # Check text needs to be written to file
     def check_report(result: str):
-        if "Task List:" not in result:
+        if "Task List:" not in result and "list of possible tasks" not in result and "list of tasks" not in result:
             text = ""
-            if "Report-Tag" in result:
+            if "Chapter " and ("Draft" or "Report-Tag") in result:
+                text = result.split("Chapter ")[1]
+                write_report(REPORT_FILE, "Chapter " + str(text) + "\n\n", 'a')
+                #text = result.split("Chapter ")
+                #write_report(REPORT_FILE, "Chapter " + str(text) + "\n", 'a')
+            elif "Report-Tag" in result:
                 text = result.split("Report-Tag")[0]
-                text2 = result.split("Report-Tag")[1]
-                if text2:
-                    text = text2
-            elif "Short Story:" in result:
-                text = result.split("Short Story:")[1]
+                text3 = str("")
+                if text:
+                    text3 = str(result.split("Report-Tag"))
+                    if len(text3) > len(text):
+                        if text3.split(": ")[1]:
+                            text = text3.split(": ")
+                            write_report(REPORT_FILE, str(text) + "\n\n", 'a')
+                if not text:
+                    text = result.split("Report-Tag")
+                    write_report(REPORT_FILE, str(text) + "\n\n", 'a')
+                    
             if text:
-                write_report(REPORT_FILE, str(text) + "\n", 'a')
-                print("Text written to report file...\n")
+                print("Text written to report file...")
                 print_to_file("Text written to report file...\n", 'a')
 
     # Check if summary file exists
     def check_report_file(file: str):
         try:
             with open(file, 'r') as f:
-                print(f"Use existing report file. Text will be appended to the file...")
+                print(f"Use existing report file. New text will be appended...")
         except:
             with open(file, 'w') as f:
                 print(f"Reoort file does not exists, creating file...")
@@ -181,64 +193,79 @@ if ENABLE_SEARCH_EXTENSION:
 # Load & embedd all supported document in folder 'source_documents' in chromadb vector store with 'document-loader.py'
 # The complete functionality is from: https://github.com/imartinez/privateGPT.git
 if ENABLE_DOCUMENT_EXTENSION:
-    from langchain.chains import RetrievalQA
-    from langchain.embeddings import HuggingFaceEmbeddings
-    from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-    from langchain.vectorstores import Chroma
-    from langchain.llms import GPT4All, LlamaCpp
-    import argparse
+    if can_import("extensions.doc_embedding"):
+        from langchain.chains import RetrievalQA
+        from langchain.embeddings import HuggingFaceEmbeddings
+        from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+        from langchain.vectorstores import Chroma
+        from langchain.llms import GPT4All, LlamaCpp
+        import argparse
+        from extensions.doc_embedding import text_loader, parse_arguments
 
-    embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME", "all-MiniLM-L6-v2")
-    embeddings_temperature = float(os.environ.get("EMBEDDINGS_TEMPERATURE", 0.8))
-    persist_directory = os.environ.get("DOC_STORE_NAME", "")
-    model_type = os.environ.get("EMBEDDINGS_MODEL_TYPE", "LlamaCpp")
-    model_path = os.environ.get("EMBEDDINGS_MODEL_PATH", "")
-    model_n_ctx = int(os.environ.get("LLAMA_CTX_MAX", 1024))
+        persist_directory = os.environ.get("DOC_STORE_NAME", "")
+        source_path = os.environ.get("DOC_SOURCE_PATH", "")
+        embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME", "all-MiniLM-L6-v2")
+        embeddings_temperature = float(os.environ.get("EMBEDDINGS_TEMPERATURE", 0.8))
+        model_type = os.environ.get("EMBEDDINGS_MODEL_TYPE", "LlamaCpp")
+        model_path = os.environ.get("EMBEDDINGS_MODEL_PATH", "")
+        model_n_ctx = int(os.environ.get("LLAMA_CTX_MAX", 1024))
 
-    # Define the Chroma settings
-    CHROMA_SETTINGS = Settings(
+        # Define the Chroma settings
+        CHROMA_SETTINGS = Settings(
             chroma_db_impl='duckdb+parquet',
             persist_directory=persist_directory,
             anonymized_telemetry=False
-    )
+        )
 
-    # Command line parser function
-    def parse_arguments():
-        parser = argparse.ArgumentParser(description='privateGPT: Ask questions to your documents without an internet connection, '
-                                                    'using the power of LLMs.')
-        parser.add_argument("--hide-source", "-S", action='store_true',
-                            help='Use this flag to disable printing of source documents used for answers.')
+        # Parse the command line arguments
+        args = parse_arguments()
+        embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
+        retriever = db.as_retriever()
 
-        parser.add_argument("--mute-stream", "-M",
-                            action='store_true',
-                            help='Use this flag to disable the streaming StdOut callback for LLMs.')
-        return parser.parse_args()
-    
+        # activate/deactivate the streaming StdOut callback for LLMs
+        callbacks = [] if args.mute_stream else [StreamingStdOutCallbackHandler()]
 
-    # Parse the command line arguments
-    args = parse_arguments()
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
-    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
-    retriever = db.as_retriever()
-
-    # activate/deactivate the streaming StdOut callback for LLMs
-    callbacks = [] if args.mute_stream else [StreamingStdOutCallbackHandler()]
-
-    # Prepare the LLM
-    match model_type:
-        case "LlamaCpp":
-            llm = LlamaCpp(model_path=model_path, n_ctx=model_n_ctx, callbacks=callbacks, verbose=False, temperature=embeddings_temperature)
-        case "GPT4All":
-            llm = GPT4All(model=model_path, n_ctx=model_n_ctx, backend='gptj', callbacks=callbacks, verbose=False, temp=embeddings_temperature)
-        case _default:
-            print(f"Model {model_type} not supported!")
-            exit;
-    
-    qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= not args.hide_source)
+        # Prepare the LLM
+        match model_type:
+            case "LlamaCpp":
+                llm = LlamaCpp(model_path=model_path, n_ctx=model_n_ctx, callbacks=callbacks, verbose=False, temperature=embeddings_temperature)
+            case "GPT4All":
+                llm = GPT4All(model=model_path, n_ctx=model_n_ctx, backend='gptj', callbacks=callbacks, verbose=False, temp=embeddings_temperature)
+            case _default:
+                print(f"Model {model_type} not supported!")
+                exit;
+        
+        qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= not args.hide_source)
 # ------------------------
 # Extensions support end
 
 
+# Print configuration
+print("\033[95m\033[1m" + "\n*****CONFIGURATION*****" + "\033[0m\033[0m")
+print(f"Name  : {INSTANCE_NAME}")
+print(f"Mode  : {'alone' if COOPERATIVE_MODE in ['n', 'none'] else 'local' if COOPERATIVE_MODE in ['l', 'local'] else 'distributed' if COOPERATIVE_MODE in ['d', 'distributed'] else 'undefined'}\n")
+print(f"LLM Model           : {LLM_MODEL}")
+print(f"Max. Tokens         : {MAX_TOKENS}\n")
+print(f"LLAMA Temperature   : {LLAMA_TEMPERATURE}")
+print(f"LLAMA Context Size  : {LLAMA_CONTEXT}")
+print(f"LLAMA CTX MAX       : {LLAMA_CTX_MAX}")
+print(f"LLAMA Failsafe      : {LLAMA_FAILSAFE}\n")
+print(f"File Report Extension           : {ENABLE_REPORT_EXTENSION}")
+print(f"Smart Internet Search Extension : {ENABLE_SEARCH_EXTENSION}")
+print(f"Document Embedding Extension    : {ENABLE_DOCUMENT_EXTENSION}\n")
+client = chromadb.Client(Settings(anonymized_telemetry=False))
+
+# Check if we know what we are doing
+assert OBJECTIVE, "\033[91m\033[1m" + "OBJECTIVE environment variable is missing from .env" + "\033[0m\033[0m"
+assert INITIAL_TASK, "\033[91m\033[1m" + "INITIAL_TASK environment variable is missing from .env" + "\033[0m\033[0m"
+
+if ENABLE_REPORT_EXTENSION:
+    check_report_file(REPORT_FILE)
+
+
+# Function definitions
+# ------------------------
 # Check if local file exists (and contains OBJECTIVE in case of 'task_list.txt')
 def check_file():
     try:
@@ -259,26 +286,55 @@ def print_to_file(text: str, mode: chr):
         f.write(text)
 
 
-# Print configuration
-print("\033[95m\033[1m" + "\n*****CONFIGURATION*****" + "\033[0m\033[0m")
-print(f"Name  : {INSTANCE_NAME}")
-print(f"Mode  : {'alone' if COOPERATIVE_MODE in ['n', 'none'] else 'local' if COOPERATIVE_MODE in ['l', 'local'] else 'distributed' if COOPERATIVE_MODE in ['d', 'distributed'] else 'undefined'}\n")
-print(f"LLM Model         : {LLM_MODEL}")
-print(f"LLAMA Temperature : {LLAMA_TEMPERATURE}")
-print(f"LLAMA Context Max : {LLAMA_CONTEXT}")
-print(f"LLAMA CTX MAX     : {LLAMA_CTX_MAX}")
-print(f"LLAMA Failsafe    : {LLAMA_FAILSAFE}\n")
-print(f"Smart Internet Search Extension : {ENABLE_SEARCH_EXTENSION}")
-print(f"Document Embedding Extension    : {ENABLE_DOCUMENT_EXTENSION}")
-print(f"File Report Extension           : {ENABLE_REPORT_EXTENSION}\n")
-client = chromadb.Client(Settings(anonymized_telemetry=False))
+# Q&A retrieval with embedded document vector store
+def qa_retrieval(task: str, context: list):
+    doc_context = str("")
+    context_size = int(LLAMA_CONTEXT/3)
 
-# Check if we know what we are doing
-assert OBJECTIVE, "\033[91m\033[1m" + "OBJECTIVE environment variable is missing from .env" + "\033[0m\033[0m"
-assert INITIAL_TASK, "\033[91m\033[1m" + "INITIAL_TASK environment variable is missing from .env" + "\033[0m\033[0m"
+    query = f"Answer the following query: {task}\n"
+    query += f"Take into account the context from previous tasks: {str(context)}\n\nYour response: "
+    if INITIAL_TASK in task:
+        query = INITIAL_TASK + " for objective: " + OBJECTIVE
 
-if ENABLE_REPORT_EXTENSION:
-    check_report_file(REPORT_FILE)
+    print(f"\033[96m\033[1m\n*****DOCUMENT EMBEDDING CONTEXT*****\033[0m\033[0m")
+    res = qa(query)
+    answer, docs = res['result'], [][0:int(LLAMA_CTX_MAX)] if args.hide_source else res[source_path]
+    
+    if doc_context:
+        if doc_context.rfind("As an AI assistant"):
+            doc_context = doc_context.split(". ")
+        print_to_file(f"\n*****DOCUMENT EMBEDDING CONTEXT*****\n{doc_context}", 'a')
+    
+    if LLM_MODEL.startswith("llama") and len(str(answer)) > context_size:
+        doc_context = str(answer)[0:context_size]
+    else:
+        if answer:
+            doc_context = str(answer)
+    print_to_file(doc_context + "\n\n", 'a')
+    print()
+
+    return doc_context
+
+
+# Context retrieval with embedded chat vector store
+def context_retrieval(objective: str, task: str):
+    context_objective = []
+    context = ""
+    query = task + "... With the following objective: " + objective
+    if INITIAL_TASK in task:
+        if ENABLE_REPORT_EXTENSION:
+            query = OBJECTIVE + " " + ACTION + " " + INSTRUCTION
+        else:
+            query = INITIAL_TASK + " for objective: " + OBJECTIVE
+
+    context = context_agent(query=query, top_results_num=5)
+
+    print(f"\033[96m\033[1m\n*****RELEVANT CONTEXT*****\033[0m\033[0m\n{context}")
+    print_to_file(f"\n*****RELEVANT CONTEXT*****\n{context}\n", 'a')
+    return context
+# ------------------------
+# Function definitions end
+
 
 # Setup Llama (evaluation and embedding)
 if LLM_MODEL.startswith("llama"):
@@ -332,6 +388,7 @@ if LLM_MODEL.startswith("human"):
         + "\033[0m\033[0m"
     )
 
+
 # Print objective
 print("\033[94m\033[1m" + "\n*****OBJECTIVE*****" + "\033[0m\033[0m")
 print(f"{OBJECTIVE}")
@@ -369,16 +426,9 @@ class DefaultResultsStorage:
         logging.getLogger('chromadb').setLevel(logging.ERROR)
         # Create Chroma collection
         chroma_persist_dir = "chroma"
-        # Non-persistent vector storage
-        if not PERSISTENT_STORAGE:
-            chroma_db_impl="duckdb"            
-        # Persistent vector storage
-        else:
-            chroma_db_impl="duckdb+parquet"
-
         chroma_client = chromadb.Client(
                 settings=chromadb.config.Settings(
-                    chroma_db_impl=chroma_db_impl,
+                    chroma_db_impl="duckdb+parquet",
                     persist_directory=chroma_persist_dir,
                 )
             )
@@ -602,11 +652,12 @@ def openai_call(
             break
 
 
+# Create new tasks and store to task list
 def task_creation_agent(
-        objective: str, result: Dict, task_description: str, task_list: List[str], internet_result: str, search_result: str
+        objective: str, result: Dict, task_description: str, task_list: List[str], internet_result: str, doc_result: str
 ):  
     if LLM_MODEL.startswith("llama"):
-        task_description = task_description[0:LLAMA_CONTEXT]
+        task_description = task_description[0:int(LLAMA_CONTEXT/4)]
         
     prompt = f"""
 You are to use the result from an execution agent to create new tasks with the following objective: {objective}\n
@@ -629,56 +680,14 @@ The number of each entry must be followed by a period. If your list is empty, wr
 Unless your list is empty, do not include any headers before your numbered list or follow your numbered list with any other output.
 \nYour response: """
 
-    print(f"\n*****TASK CREATION AGENT PROMPT****\n{prompt}")
+    print(f"\n****TASK CREATION AGENT PROMPT****\n{prompt}")
     print_to_file(f"\n****TASK CREATION AGENT PROMPT****\n{prompt}\n", 'a')
-    response = openai_call(prompt, max_tokens=2000)
-    if LLM_MODEL.startswith("llama") and len(response) > LLAMA_CONTEXT:
-        response = response[0:LLAMA_CONTEXT]
-
+    response = openai_call(prompt, max_tokens=MAX_TOKENS)
+            
     print(f"\n****TASK CREATION AGENT RESPONSE****\n{response}")
     print_to_file(f"\n****TASK CREATION AGENT RESPONSE****\n{response}\n", 'a')
     new_tasks = response.split('\n')
     new_tasks_list = []
-
-    # Llama failsafe routine (execute last task again and use failsafe results for creation of new_tasks_list)
-    if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and (task_description in response or len(response) < int(LLAMA_CONTEXT/5) or not new_tasks):
-        print(f'\nContext has been lost and task creation prompt or response is truncated,... create failsafe prompt and request response.\n')
-        print_to_file(f'\nContext has been lost and task creation prompt or response is truncated,... create failsafe prompt and request response.\n', 'a')
-
-        if ENABLE_SEARCH_EXTENSION:
-            if task_description == "":
-                task_description = INITIAL_TASK + " for objective: " + objective
-            result, next_task_flag = llama_failsafe_agent(task_description, internet_result, search_result)
-        else:
-            result = execution_agent(OBJECTIVE, task_description)
-
-        prompt = f"You are to use the result from an execution agent to create new tasks with the following objective: {objective}\n"
-        prompt += f"The last completed task has the result: {result}"
-        prompt += f"This result was based on this task description: {task_description}.\n"
-
-        if task_list:
-            prompt += f"These are incomplete tasks: {', '.join(task_list)}\n"
-        prompt += "Based on the result, return a list of tasks to be completed in order to meet the objective. "
-        if task_list:
-            prompt += "These new tasks must not overlap with incomplete tasks. "
-
-        prompt += """
-        Return one task per line in your response. The result must be a numbered list in the format:
-        
-        #. First task
-        #. Second task
-        
-        The number of each entry must be followed by a period. If your list is empty, write "There are no tasks to add at this time."
-        Unless your list is empty, do not include any headers before your numbered list or follow your numbered list with any other output.
-        \nYour response: """
-        response = openai_call(prompt, max_tokens=2000)
-
-        if len(response) > LLAMA_CONTEXT:
-            response = response[0:LLAMA_CONTEXT]
-        print("\033[93m\033[1m" + "\n*****FAILSAFE TASK CREATION*****\n" + "\033[0m\033[0m" + "\n" + response + "\n")
-        print_to_file("\n*****FAILSAFE TASK CREATION*****\n" + response + "\n", 'a')
-        new_tasks = response.split('\n')
-        new_tasks_list = []
 
     for task_string in new_tasks:
         task_parts = task_string.strip().split(".", 1)
@@ -693,7 +702,8 @@ Unless your list is empty, do not include any headers before your numbered list 
     return out
 
 
-def prioritization_agent(enriched_result, task, internet_result, search_result):
+# Prioritize tasks from task list
+def prioritization_agent():
     task_names = tasks_storage.get_task_names()
     bullet_string = '\n'
 
@@ -711,31 +721,8 @@ Do not include any headers before your ranked list or follow your list with any 
 
     print(f"\n****TASK PRIORITIZATION AGENT PROMPT****\n{prompt}")
     print_to_file(f"\n****TASK PRIORITIZATION AGENT PROMPT****\n{prompt}\n", 'a')
-    response = openai_call(prompt, max_tokens=2000)
-    if LLM_MODEL.startswith("llama") and len(response) > LLAMA_CONTEXT:
-        response = response[0:LLAMA_CONTEXT]
 
-    # Llama failsafe routine (Create new tasks based on last task and add to task_storage)
-    if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(response) < int(LLAMA_CONTEXT/10):
-        print(f'\nContext has been lost and task prioritization prompt is truncated,... create new tasks again and add to task storage.\n')
-        print_to_file(f'\nContext has been lost and task prioritization prompt is truncated,... create new tasks again and add to task storage.\n', 'a')
-        if internet_result:
-            enriched_result = {
-                    "data": internet_result
-                }
-        new_tasks = task_creation_agent(
-            OBJECTIVE,
-            enriched_result,
-            task["task_name"],
-            tasks_storage.get_task_names(),
-            internet_result,
-            search_result,
-        )
-        
-        response = openai_call(prompt, max_tokens=2000)
-        if len(response) > LLAMA_CONTEXT:
-            response = response[0:LLAMA_CONTEXT]
-
+    response = openai_call(prompt, max_tokens=MAX_TOKENS)
     print(f"\n****TASK PRIORITIZATION AGENT RESPONSE****\n{response}")
     print_to_file(f"\n****TASK PRIORITIZATION AGENT RESPONSE****\n{response}\n", 'a')
     if not response:
@@ -758,8 +745,8 @@ Do not include any headers before your ranked list or follow your list with any 
     return new_tasks_list
 
 
-# Execute a task based on the objective and five previous tasks
-def execution_agent(objective: str, task: str) -> str:
+# Execute a task based on the objective and context
+def execution_agent(objective: str, task: str, doc_result: str) -> str:
     """
     Executes a task based on the given objective and previous context.
 
@@ -773,55 +760,32 @@ def execution_agent(objective: str, task: str) -> str:
     """
     context = []
     if INITIAL_TASK not in task:
-        if LLM_MODEL.startswith("llama"):
-            top_results_num = 3
-            result_factor = 3
-            context = context_agent(query=objective, top_results_num=top_results_num)
-            for i in range(0, len(context)):
-                context[i] = context[i][int(i*(LLAMA_CONTEXT/(top_results_num*result_factor))):int((LLAMA_CONTEXT/(top_results_num*result_factor)*(i+1)))]
-        else:
-            context = context_agent(query=objective, top_results_num=5)
-                
-    print(f"\033[96m\033[1m\n*****RELEVANT CONTEXT*****\033[0m\033[0m\n{context}")
-    print_to_file(f"\n*****RELEVANT CONTEXT*****\n{context}\n", 'a')
-
-    if ENABLE_DOCUMENT_EXTENSION:
-        doc_context = ""
-        doc_length = int(LLAMA_CONTEXT/3)
-        query = f"Consider the length limit of {doc_length} characters for your response on the following query: {task}\n"
-        query += f"Take into account also the context from previous tasks: {str(context)}\nYour response: "
-
-        # Retrieve document embedding context via Q&A
-        if INITIAL_TASK in task:
-            query = ""
-
-        print(f"\033[96m\033[1m\n*****DOCUMENT EMBEDDING CONTEXT*****\033[0m\033[0m")
-        print_to_file(f"\n*****DOCUMENT EMBEDDING CONTEXT*****\n", 'a')
-        if query:
-            res = qa(query)
-            answer, docs = res['result'], [] if args.hide_source else res['source_documents']
-            if LLM_MODEL.startswith("llama") and len(str(answer)) > doc_length:
-                if answer:
-                    doc_context = str(answer)[0:doc_length]
-            else:
-                if answer:
-                    doc_context = str(answer)
-            print_to_file(doc_context + "\n\n", 'a')
-            print()
+        context = context_retrieval(objective, task)
+    
+    doc_context = ""
+    if ENABLE_DOCUMENT_EXTENSION and not doc_result:
+        doc_context = qa_retrieval(task, context)
+    
+    else:
+        doc_context = doc_result
 
     prompt = f'Perform one task based on the following objective: {OBJECTIVE}\nYour task: {task}\n'
     if ENABLE_REPORT_EXTENSION and INITIAL_TASK not in task:
-        prompt += f'Consider the following as the action which shall be executed when the objective has been achieved, ignore for task planning purposes: {ACTION}\n'
-        prompt += f'Consider the following additional instructions for execution of the action, ignore for other purposes: {INSTRUCTION}\n'
+        prompt += f'Consider the following action which shall be executed based on the objective, ignore for creation of a task list: {ACTION}\n'
+        prompt += f'Consider the following instructions for execution of the action, ignore for creation of a task list: {INSTRUCTION}\n'
     if context:
         prompt += 'Take into account these previously completed tasks:' + '\n'.join(context)
     if ENABLE_DOCUMENT_EXTENSION and doc_context:
         prompt += f'\nConsider the answer on the task from related document embedding query: {doc_context}'
+    prompt += '\nIgnore implausible and incomprehensible information.'
     if ENABLE_SEARCH_EXTENSION:
         #prompt += f'\nDo your best to complete the task and provide a useful answer. Responding with the task content itself, a variation of it or vague suggestions, is not useful as well. In this case assume that internet search is required.'
-        prompt += f'\nIf internet search is required to complete the task, add "Internet search request: " to the response and add the task redrafted to an optimal concise internet search request.'
+        if ENABLE_DOCUMENT_EXTENSION:
+            prompt += '\nAdd "Internet search request: " to the response and add the task redrafted to an optimal concise internet search request.'
+        else:
+            prompt += '\nIf internet search is required to complete the task, add "Internet search request: " to the response and add the task redrafted to an optimal concise internet search request.'
     prompt += f'\n\nYour response: '
-    return openai_call(prompt, max_tokens=2000)
+    return openai_call(prompt, max_tokens=MAX_TOKENS), doc_context
 
 
 # Get the top n completed tasks for the objective
@@ -847,12 +811,15 @@ def context_agent(query: str, top_results_num: int):
 def internet_agent(result: str, task: str):
     search_request = ""
     search_results = ""
-    prompt = ""
     lines = result.split("\n")
-    result = ""
     line_flag = False
 
-    # Do not trigger internet search for INITIAL_TASK
+    # Llama failsafe: Trigger internet search if task result truncated
+    #if LLM_MODEL.startswith("llama") and len(result) < int(LLAMA_CONTEXT/100) and INITIAL_TASK not in task:
+    #    print("Trigger internet search due to truncated result...")
+    #    search_request = task
+
+    # Normal extraction of search request from task result
     if INITIAL_TASK not in task:
         for l in lines:
             if "search request: " in l:
@@ -868,107 +835,43 @@ def internet_agent(result: str, task: str):
                 except:
                     break
 
-        # Get top urls from smart search and scrape web pages
+        # Get top urls from smart search and scrape web pages with LLM powered summarization
         if search_request:
+            # Extract text in quotes if present
+            if search_request.startswith('"'):
+                search_request = search_request[1:search_request.rfind('"')]
+            print("\nExtracted search request: " + search_request)
+
             search_results = ""
-            search_extract = ""
-            num_results = 5
+            num_results = 3     # 5 is better, but web scrape result summarization is token intensive
             if LLM_MODEL.startswith("llama"):
                 num_results = 2
 
             if GOOGLE_API_KEY and GOOGLE_CSE_ID:
-                print("\nAccess smart search with Google CSE")
+                print("Access smart search with Google CSE")
                 print_to_file("\nAccess smart search with Google CSE\n", 'a')
                 search_results += web_search_tool(OBJECTIVE, task, num_results, "google")
             elif SERPAPI_API_KEY:
-                print("\nAccess smart search with SERPAPI")
+                print("Access smart search with SERPAPI")
                 print_to_file("\nAccess smart search with SERPAPI\n", 'a')
                 search_results += web_search_tool(OBJECTIVE, task, num_results, "serpapi")
             else:
-                print("\nAccess smart search with www.duckduckgo.com")
+                print("Access smart search with www.duckduckgo.com")
                 print_to_file("\nAccess smart search with www.duckduckgo.com\n", 'a')
                 search_results += web_search_tool(OBJECTIVE, task, num_results, "browser")
 
-    # Evaluate search results with LLM
+    # Summarize search results
     if search_results:
-        if LLM_MODEL.startswith("llama"):
-            for i in range(0, num_results):
-                search_extract += search_results[int(i*(LLAMA_CONTEXT/num_results)):int((LLAMA_CONTEXT/num_results)*(i+1))]
-        else:
-            search_extract = search_results
-            
-        # Use extracted search result as result
-        result = search_extract
-        if LLM_MODEL.startswith("llama") and len(result) > LLAMA_CONTEXT:
-            result = result[0:LLAMA_CONTEXT]
+        result = search_results
+        context_size = int(LLAMA_CONTEXT/2)
+        if LLM_MODEL.startswith("llama") and len(result) > context_size:
+            result = result[0:context_size]
 
-        print("\033[93m\033[1m" + "\n*****TASK RESULT WITH SMART SEARCH*****" + "\033[0m\033[0m" + f"\n{result}")
-        print_to_file("\n*****TASK RESULT WITH SMART SEARCH*****\n" + f"{result}\n", 'a')
-    return(prompt, result, search_results)
-
-
-# Llama failsafe routine (create new prompt with internet search prompt/results and send prompt)
-def llama_failsafe_agent(task: str, internet_result: str, search_result: str):
-    #print('\nTruncated task result,... formulate a new prompt with internet search prompt & results and send prompt.')
-    #print_to_file('\nTruncated task result,... formulate a new prompt with internet search prompt & results and send prompt.', 'a')
-    next_task_flag = False
-    objective = OBJECTIVE
-    context = context_agent(query=objective, top_results_num=5)
-
-    # Check internet search result
-    if search_result == "":
-        if task:
-            if INITIAL_TASK in task:
-                task = INITIAL_TASK + " for the objective: " + OBJECTIVE
-            prompt, result, search_result = internet_agent(internet_result, task)
-
-            print('\nInternet search result not available,... repeat last task: \n' + task)
-        else:
-            print('\nInternet search result not available and task is empty, use initial task and objective for new prompt.')
-            objective = INITIAL_TASK + " for the objective: " + OBJECTIVE
-
-        next_task_flag=True
+        print("\033[93m\033[1m" + "\n*****TASK RESULT WITH SMART SEARCH*****" + "\033[0m\033[0m")
+        print_to_file("\n*****TASK RESULT WITH SMART SEARCH*****\n", 'a')
     else:
-        print('\nInternet search result is available...')
-        if len(internet_result) > LLAMA_CONTEXT:
-            internet_result = internet_result[0:LLAMA_CONTEXT]
-    
-    if ENABLE_DOCUMENT_EXTENSION:
-        doc_context = ""
-        doc_length = int(LLAMA_CONTEXT/3)
-
-        # Get the answer from the chain
-        query = f"Consider the length limit of {doc_length} characters for your response on the following query: {task}\n"
-        query += f"Take into account also the context from previous tasks: {str(context)}\nYour response: "
-        res = qa(query)
-        answer, docs = res['result'], [] if args.hide_source else res['source_documents']
-
-        # Failsafe for llama with limited context length
-        if LLM_MODEL.startswith("llama") and len(str(answer)) > doc_length:
-            if answer:
-                doc_context = str(answer)[0:doc_length]
-        else:
-            if answer:
-                doc_context = str(answer)
-
-    prompt = f'Perform one task based on the following objective: {objective}\nYour task: {task}'
-    if context:
-        prompt += '\nTake into account these previously completed tasks:' + '\n'.join(context)
-    if ENABLE_DOCUMENT_EXTENSION and doc_context:
-        prompt += f'\nConsider the answer on the task from related document embedding query: {doc_context}'
-    if internet_result:
-        prompt += f'\nConsider the internet search result for the task: {internet_result}'
-    prompt += f'\n\nYour response: '
-    result = openai_call(prompt, max_tokens=2000)
-
-    if len(result) > LLAMA_CONTEXT:
-        result = result[0:LLAMA_CONTEXT]
-    print("\033[92m\033[1m" + "\n*****FAILSAFE TASK EXECUTION*****\n" + "\033[0m\033[0m" + result + "\n")
-    print_to_file("\n*****FAILSAFE TASK EXECUTION*****\n" + result + "\n", 'a')
-    if ENABLE_REPORT_EXTENSION:
-        check_report(result)
-
-    return result, next_task_flag
+        result = ""
+    return result, search_results, search_request
 
 
 # Add the initial task if starting new objective
@@ -982,7 +885,6 @@ if not JOIN_EXISTING_OBJECTIVE:
 
 def main():
     loop = True
-    llama_failsafe_counter = 0
     while loop:
         # As long as there are tasks in the storage...
         if not tasks_storage.is_empty():
@@ -1000,58 +902,61 @@ def main():
             print(str(task["task_name"]))
             print_to_file("\n*****NEXT TASK*****\n" + str(task["task_name"]) + "\n", 'a')
 
-            # Send to execution function to complete the task based on the context
-            result = execution_agent(OBJECTIVE, str(task["task_name"]))
-            print("\033[93m\033[1m" + "\n*****TASK RESULT*****" + "\033[0m\033[0m\n" + result)
-            print_to_file("\n*****TASK RESULT*****\n" + f"{result}\n", 'a')
+            # Send to execution function to complete the task with given objective
+            doc_result = ""
+            result, doc_result = execution_agent(OBJECTIVE, str(task["task_name"]), doc_result)
+            if ENABLE_REPORT_EXTENSION:
+                check_report(result)
 
-            # Step 2: Check if internet search is required for conclusion of this task
-            internet_prompt = ""
+            print("\033[93m\033[1m" + "\n*****TASK RESULT*****" + "\033[0m\033[0m")
+            print_to_file("\n*****TASK RESULT*****\n", 'a')
+
+            # Step 2: Check if internet search is required for conclusion of the task
             internet_result = ""
             search_result = ""
-            internet_prompt, internet_result, search_result = internet_agent(result, str(task["task_name"]))
+            if ENABLE_SEARCH_EXTENSION:
+                internet_result, search_result, search_request = internet_agent(result, str(task["task_name"]))
+                if ENABLE_DOCUMENT_EXTENSION and ENABLE_DOC_UPDATE and internet_result:
+                    page = "Internet search request: " + search_request + "\nScraping results: " + search_result + "\nResults summary: " + internet_result
+                    text_loader(persist_directory, page)
+                    print("Add internet search with request and summary result to document embeddings...\n")
 
-            if internet_result:
-                result = internet_result
+            # Llama failsafe: Check for result substitution/amendment
+            if LLM_MODEL.startswith("llama"):
+                if internet_result:
+                    result = "Internet search request: " + search_request + "\n" + internet_result
+                    print("Adding internet result...\n")
+                elif len(result) < int(LLAMA_CONTEXT/10):
+                    if internet_result:
+                        result = internet_result
+                        print(f"Substitute with internet result...\n")
+                    elif doc_result:
+                        if len(result) < int(LLAMA_CONTEXT/100):
+                            result = result + "\n" + doc_result
+                            print(f"Adding document result...\n")
+                        elif "I'm sorry, but I cannot" in result and len(result) < int(LLAMA_CONTEXT/10):
+                            print(f"Document result is not useful, triggering internet search...\n")
+                            request = "Internet search request: " + str(task["task_name"])
+                            internet_result = ""
+                            search_result = ""
+                            result, search_result, search_request = internet_agent(request, str(task["task_name"]))
             else:
-                # Failsafe for llama with limited context length
-                if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and len(result) < int(LLAMA_CONTEXT/10):
-                    result, next_task_flag = llama_failsafe_agent(str(task["task_name"]), internet_result, search_result)
+                result = result + "\n" + internet_result + "\n" + doc_result
 
-                    # Normal procedure with enriched result storage and then create new tasks
-                    if not next_task_flag or len(result) > int(LLAMA_CONTEXT/100):
-                        print(f'\nTask result is OK -> Continue with result storage...')
-                        print_to_file(f'\nTask result is OK -> Continue with result storage...\n', 'a')
-                        # Step 3: Enrich result and store in the results storage
-                        #print(f"\nUpdate embedded vector store with result: {result}")
-                        enriched_result = {
-                            "data": result
-                        }
-                        result_id = f"result_{task['task_id']}"
-                        results_storage.add(task, result, result_id)
-
-                    # Do not execute step 3 (enriched result storage), but select next task and execute step 4 (create new tasks)
-                    else:
-                        print(f'\nTask result is incomprehensible,... select next task.\n')
-                        print_to_file(f'\nTask result is incomprehensible,... select next task.\n', 'a')
-                        task.update({"task_id": tasks_storage.next_task_id()})
+            print(result)
+            print_to_file(result, 'a')
 
             # Step 3: Enrich result and store in the results storage
             # This is where you should enrich the result if needed
-            #print(f"\nUpdate embedded vector store with result: {result}")
+            #print(f"\nUpdate embedded vector store with result:\n{result}")
             enriched_result = {
                 "data": result
             }
             # extract the actual result from the dictionary
             # since we don't do enrichment currently
-            # vector = enriched_result["data"]
-
+            #vector = enriched_result["data"]["document"]["internet"]
             result_id = f"result_{task['task_id']}"
-            results_storage.add(task, result, result_id)
-
-            # Check if result includes output to file
-            if ENABLE_REPORT_EXTENSION:
-                check_report(result)
+            results_storage.add(task, result, result_id)      
 
             # Step 4: Create new tasks and re-prioritize task list
             # only the main instance in cooperative mode does that
@@ -1060,8 +965,8 @@ def main():
                 enriched_result,
                 task["task_name"],
                 tasks_storage.get_task_names(),
-                result,
-                search_result,
+                internet_result,
+                doc_result,
             )
             
             print('Adding new tasks to task_storage...')
@@ -1071,7 +976,7 @@ def main():
                 tasks_storage.append(new_task)
 
             if not JOIN_EXISTING_OBJECTIVE:
-                prioritized_tasks = prioritization_agent(enriched_result, task, result, search_result)
+                prioritized_tasks = prioritization_agent()
                 if prioritized_tasks:
                     tasks_storage.replace(prioritized_tasks)
 
@@ -1079,49 +984,8 @@ def main():
             time.sleep(5)
 
         else:
-            if LLM_MODEL.startswith("llama") and LLAMA_FAILSAFE and llama_failsafe_counter < 2:
-                llama_failsafe_counter+=1
-                print(f"\nFailsafe triggered at exit,... trigger failsafe routine. Failsafe counter: {llama_failsafe_counter}")
-                result, next_task_flag = llama_failsafe_agent(str(task["task_name"]), result, search_result)
-
-                # Step 3: Enrich result and store in the results storage
-                #print(f"\nUpdate embedded vector store with result: {result}")
-                enriched_result = {
-                    "data": result
-                }
-                result_id = f"result_{task['task_id']}"
-                results_storage.add(task, result, result_id)
-
-                # Check if result includes output to file
-                if ENABLE_REPORT_EXTENSION:
-                    check_report(result)
-
-                if tasks_storage.is_empty():
-                    print('Task storage is empty, ...create new tasks.')
-                    new_tasks = task_creation_agent(
-                        OBJECTIVE,
-                        enriched_result,
-                        task["task_name"],
-                        tasks_storage.get_task_names(),
-                        result,
-                        search_result,
-                    )                 
-                    print('Adding new tasks to task_storage...')
-                    for new_task in new_tasks:
-                        new_task.update({"task_id": tasks_storage.next_task_id()})
-                        print(str(new_task))
-                        tasks_storage.append(new_task)
-                else:
-                    print('Task storage is not empty, ...select next task.')
-                    task.update({"task_id": tasks_storage.next_task_id()})
-                    tasks_storage.append(task)
-
-                # Sleep a bit before checking the task list again
-                time.sleep(5)
-
-            else:
-                print('Done.')
-                loop = False
+            print('Done.')
+            loop = False
 
 
 if __name__ == "__main__":
