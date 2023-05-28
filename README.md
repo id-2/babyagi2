@@ -23,7 +23,7 @@ Toplist search and subsequent web page scraping, with LLM powered result summari
 New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
   - Many thanks to https://github.com/imartinez for the great work!
   - The main functionality from file privateGPT.py has been integrated in BabyAGI
-  - Document loader as separate script (slightly modified ingest.py), documents in subfolder "source_documents" (create the folder) are loaded and embedded in a document embedding vector store
+  - Document loader as separate script (slightly modified ingest.py), documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store
   - Additional script scraper.py for toplist search and scraping of web pages related to objective and adding to vector store before the task procedure is started
   - Q&A retrieval script qa-retrieval.py (slightly modified privateGPT.py) is good for vector store evaluation purposes
 
@@ -34,7 +34,7 @@ The intention behind this functionality is to give BabyAGI a long-term memory, c
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Memory.jpeg)
 
-Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_documents" (create the folder).
+Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_documents".
 
 ## Full Llama support, 100% local operation possible
 By limiting the context size for document embedding, smart search results, etc. and changing the Llama setup a bit, it is possible to have BabyAGI run stable with 7B-Llama. It is slower than with OpenAI models, but reasonable (on my MacBook M1 with 16GB RAM).
