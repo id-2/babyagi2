@@ -38,6 +38,7 @@ import argparse
 load_dotenv()
 
 # Load environment variables
+llama_type = os.environ.get("EMBEDDINGS_MODEL_PATH", "").split("/")
 embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME", "all-MiniLM-L6-v2")
 embeddings_temperature = float(os.environ.get("EMBEDDINGS_TEMPERATURE", 0.8))
 model_type = os.environ.get("EMBEDDINGS_MODEL_TYPE", "LlamaCpp")
@@ -45,6 +46,9 @@ model_path = os.environ.get("EMBEDDINGS_MODEL_PATH", "")
 model_n_ctx = int(os.environ.get("LLAMA_CTX_MAX", 1024))
 chunk_size = 500
 chunk_overlap = 50
+
+source_directory = os.environ.get('DOC_SOURCE_PATH', 'source_documents')
+scrape_directory = os.environ.get('DOC_SCRAPE_PATH', 'scrape_documents')
 
 # Custom document loaders
 class MyElmLoader(UnstructuredEmailLoader):
@@ -121,7 +125,7 @@ def load_documents(source_dir: str, ignored_files: List[str] = []) -> List[Docum
     return results
 
 
-def process_documents(source_directory: str, ignored_files: List[str] = []) -> List[Document]:
+def process_documents(ignored_files: List[str] = []) -> List[Document]:
     """
     Load documents and split in chunks
     """
@@ -131,6 +135,7 @@ def process_documents(source_directory: str, ignored_files: List[str] = []) -> L
         print("No new documents to load")
         exit(0)
     print(f"Loaded {len(documents)} new documents from {source_directory}")
+    print(documents)
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     texts = text_splitter.split_documents(documents)
     print(f"Split into {len(texts)} chunks of text (max. {chunk_size} tokens each)")
@@ -178,10 +183,9 @@ def document_loader(source_directory: str, persist_directory: str, embeddings: H
 
     if does_vectorstore_exist(persist_directory):
         # Update and store locally vectorstore
-        print(f"Appending to existing vectorstore at {persist_directory}")
+        print(f"Appending to existing vectorstore at: {persist_directory}")
         db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
-        collection = db.get()
-        texts = process_documents(source_directory, [metadata['source'] for metadata in collection['metadatas']])
+        texts = process_documents()
         print(f"Creating embeddings. May take some minutes...")
         db.add_documents(texts)
     else:
@@ -193,23 +197,76 @@ def document_loader(source_directory: str, persist_directory: str, embeddings: H
     db.persist()
     db = None
 
-    print(f"Document loading & embedding complete! Vector store has been setup at: {persist_directory}")
+    print(f"Document loading & embedding complete! Vectorstore has been setup at: {persist_directory}")
 
 
-def process_text(input: str) -> List[Document]:
+class Document:
+    def __init__(self, content, sources):
+        self.page_content = content
+        self.metadata = sources
+
+
+def process_text(qa_result: str, links: str) -> List[Document]:
     """
     Load text and split in chunks
     """
-    print(f"Loading text for embedding...")
+    print(f"Appending all available results to document embedding store...")
+    
+    # Using a dictionary for metadata
+    sources = {"source": links if links else llama_type}
+    document = Document('\n'.join([qa_result]), sources)
+
+    if not document.page_content:
+        print("No new results to load")
+        exit(0)
+
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    texts = text_splitter.split_documents(input)
+    texts = text_splitter.split_documents([document])
     print(f"Split into {len(texts)} chunks of text (max. {chunk_size} tokens each)")
+
     return texts
 
 
+def check_write(file_path: str, input: str, text: str):
+    with open(file_path, 'r') as f:
+        f.read()
+        if input not in f:
+            print(f"Store {text} in Q&A document: {scrape_directory}/qa_memory.txt")
+            return True
+        else:
+            print(f"{text} already stored in Q&A document.")
+            return False
+        
+
+# API: Write text to file
+def text_writer(file_path: str, input: str, text: str):
+    try:
+        with open(file_path, 'r') as f:
+            mode = 'a'
+            f.close()
+    except:
+        mode = 'w'
+
+    write_flag = check_write(file_path, input, text)
+    if input and write_flag:
+        if input.startswith("As an AI assistant"):
+            input = input.split(". ")
+        with open(file_path, mode) as f:
+            if mode == 'w':
+                f.write("# This file contains the list of all completed task results (for Q&A retrieval), if available with web scrape summary, LLM validated summary, source URLs and complete web pages (for later using with 'ingest.py')\n# The write feature can be enabled/disbaled with ENABLE_DOC_UPDATE.\n# The update of document embedding with new result data for presistent entity vector memory (see ENABLE_STORE_UPDATE) works indepently from this file.\n# New result data (which is not yet stored) is appended to this file. If the vectorstore (see DOC_STORE_NAME) is deleted, BabyAGI's persistent entity memory is 'erased', but still exists in this file (and can be loaded again with 'ingest.py')...\n\n")
+            f.write(input)
+            f.close()
+        return input
+    elif not write_flag:
+        return ""
+    else:
+        print("Error: Extracting text failed")
+        return ""
+
+
 # API: Load text from e.g. internet result & embedd in vector store
-def text_loader(persist_directory: str, input: str):
-# Define the Chroma settings
+def text_loader(persist_directory: str, qa_result: str, links: str):
+    # Define the Chroma settings
     CHROMA_SETTINGS = Settings(
             chroma_db_impl='duckdb+parquet',
             persist_directory=persist_directory,
@@ -221,19 +278,27 @@ def text_loader(persist_directory: str, input: str):
 
     if does_vectorstore_exist(persist_directory):
         # Update and store locally vectorstore
-        print(f"Appending to existing vectorstore at {persist_directory}")
+        print(f"Appending to existing vectorstore at: {persist_directory}")
         db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
-        collection = db.get()
-        texts = process_text(input, collection)
-        print(f"Creating embeddings. May take some minutes...")
-        db.add_documents(texts)
+        if qa_result != "":
+            texts = process_text(qa_result, links)
+            print(f"Creating embeddings. May take some minutes...")
+            db.add_documents(texts)
+            db.persist()
+            db = None
+            print(f"Document loading & embedding complete! Vectorstore has been updated at: {persist_directory}")
+            return True
+        else:
+            print("No new results to add to document embeddings")
+            return False
     else:
         # Create and store locally vectorstore
         print("Creating new vectorstore")
-        texts = process_documents()
+        texts = process_text(qa_result, links)
         print(f"Creating embeddings. May take some minutes...")
         db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory, client_settings=CHROMA_SETTINGS)
-    db.persist()
-    db = None
+        db.persist()
+        db = None
+        print(f"Document loading & embedding complete! Vectorstore has been setup at: {persist_directory}")
+        return True
 
-    print(f"Document loading & embedding complete! Vector store has been setup at: {persist_directory}")
