@@ -4,9 +4,9 @@
   - Smart internet search extension, based on BabyCatAGI implementation
   - Document embedding extension: Q&A retrieval in langchain using code from the popular repo 'privateGPT'
     - Adding of stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
-  - Persistent entity memory: Based on document embedding vector store, update each cycle with extended task results, including all smart search data if available.
+  - Persistent entity memory, based on document embedding vector store
   - Full Llama support for all functionalities, including smar internet serach
-  - Wikipedia search as smart search supplement and as context for next task.
+  - Wikipedia search as smart search supplement and as context for next task
   - Simple print to file functionality for terminal output
   - Experimental: Report extension for creation of a report (involving supplementary instructions for objective)
 
@@ -24,9 +24,9 @@ New document embedding with Q&A retrieval functionality from: https://github.com
   - Q&A retrieval script qa-retrieval.py (slightly modified privateGPT.py) is good for vector store evaluation purposes
 
 ## Persistent entity memory with document embedding vector store
-The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is quite extensive, expecially when smart internet search results are available. Beside the LLM powered result summary and a validation result, the complete scraping data is stored and embedded in vector store.
+The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is quite extensive, expecially when smart internet search results are available. Beside the LLM powered result summary and a validation result, the complete scraping data is stored and embedded in vector store. 
 
-Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_docuements" (create the folder).
+Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_documents" (create the folder).
 
 ## Full Llama support, 100% local operation possible
 By limiting the context size for document embedding, smart search results, etc. and changing the Llama setup a bit, it is possible to have BabyAGI run stable with 7B-Llama. It is slower than with OpenAI models, but reasonable (on my MacBook M1 with 16GB RAM). Web scraping result summary takes the longest.
