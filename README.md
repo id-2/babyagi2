@@ -21,11 +21,13 @@ New document embedding with Q&A retrieval functionality from: https://github.com
   - Document loader as separate script (slightly modified ingest.py)
   - Additional script scraper.py for toplist search and scraping of web pages related to objective and adding to vector store before the task procedure is started
   - Q&A retrieval script qa-retrieval.py (slightly modified privateGPT.py) is good for vector store evaluation purposes
-  - Documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store (create the folder)
+  - Documents in subfolder "source_documents" (create the folder) are loaded and embedded in a document embedding vector store
   - Many thanks to https://github.com/imartinez for the great work!
 
 ## Persistent entity memory with document embedding vector store
 The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is quite extensive, expecially when smart internet search results are available. Beside the LLM powered result summary and a validation result, the complete scraping data is stored and embedded in vector store.
+
+Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_docuements" (create the folder).
 
 ## Full Llama support, 100% local operation possible
 By limiting the context size for document embedding, smart search results, etc. and changing the Llama setup a bit, it is possible to have BabyAGI run stable with 7B-Llama. It is slower than with OpenAI models, but reasonable (on my MacBook M1 with 16GB RAM). Web scraping result summary takes the longest.
