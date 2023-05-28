@@ -30,6 +30,8 @@ New document embedding with Q&A retrieval functionality from: https://github.com
 ## Persistent entity memory with document embedding vector store
 The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is quite extensive, expecially when smart internet search results are available. Beside the LLM powered result summary and a validation result, the complete scraping data is stored and embedded in vector store. 
 
+![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Memory.jpeg)
+
 Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_documents" (create the folder).
 
 ## Full Llama support, 100% local operation possible
