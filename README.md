@@ -1,14 +1,16 @@
-# BabyAGI-Llama 🦙
+# BabyAGI-Llama 🦙... with new updates
 
-## This is a side branch of BabyAGI with enhancements...
+## This is a side branch of BabyAGI with enhancements
   - Smart internet search extension, based on BabyCatAGI implementation
   - Document embedding extension: Q&A retrieval in langchain using code from the popular repo 'privateGPT'
-    - Adding of stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
-  - Persistent entity memory, based on document embedding vector store
+    - New: Stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
+  - New: Persistent entity memory, based on document embedding vector store
   - Full Llama support for all functionalities, including smar internet serach
-  - Wikipedia search as smart search supplement and as context for next task
-  - Simple print to file functionality for terminal output
-  - Experimental: Report extension for creation of a report (involving supplementary instructions for objective)
+  - New: Wikipedia search as smart search supplement and as context for next task
+  - Simple continuous print to file functionality for terminal output
+  - Experimental extension: Report extension for creation of a report (involving supplementary instructions for objective)
+  - Adding of task information (beside ojective) in query for context agent
+  - Many minor changes/optimizations/beautifications for original code
 
 ************************************************************
 
