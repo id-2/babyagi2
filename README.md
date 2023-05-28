@@ -29,6 +29,8 @@ New document embedding with Q&A retrieval functionality from: https://github.com
   - Additional script scraper.py for toplist search and scraping of web pages related to objective and adding to vector store before the task procedure is started
   - Q&A retrieval script qa-retrieval.py (slightly modified privateGPT.py) is good for vector store evaluation purposes
 
+![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-DocEmbedding.jpeg)
+
 ## Persistent entity memory with document embedding vector store
 The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is quite extensive, expecially when smart internet search results are available. Beside the LLM powered result summary and a validation result, the complete scraping data is stored and embedded in vector store. 
 
