@@ -12,8 +12,6 @@
   - Adding of task information (beside ojective) in query for context agent
   - Many minor changes/optimizations/beautifications for original code
 
-![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Llama_Running.jpeg)
-
 ************************************************************
 
 ## Smart internet search
