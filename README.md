@@ -36,7 +36,7 @@ Running continuously with a 7B-Llama,... creating & processing the task list, an
 ************************************************************
 
 ## Experience and motivation
-The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. But the smart internet search is a great improvement in general and helps the 7B-Llama not to get stuck. The failsafe mechanisms for Llama (see parameter LLAMA_FAILSAFE) are still experimental, but help to keep the system running when context is lost by re-iterating step(s). Most important parameters is the context limit (LLAMA_CONTEXT).
+The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. But the smart internet search and document embedding are great improvements in general and help the 7B-Llama not to get stuck. Most important parameters is the context limit (LLAMA_CONTEXT) and token limit (MAX_TOKENS).
 
 The document embedding functionality from privateGPT is awesome. Document loading is super quick. The Q&A retrieval with 7B-Llama is a bit slow but acceptable. With the extension enabled and enough data embedded, the task process with 7B-Llama works very stable. Anyhow, try for yourself...
 
