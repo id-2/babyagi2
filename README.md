@@ -5,7 +5,7 @@
   - Document embedding extension: Q&A retrieval in langchain using code from the popular repo 'privateGPT'
     - New: Stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
   - New: Persistent entity memory, based on document embedding vector store
-  - Full Llama support for all functionalities, including smar internet serach
+  - Full Llama support for all functionalities, including smart internet serach
   - New: Wikipedia search as smart search supplement and as context for next task
   - Simple continuous print to file functionality for terminal output
   - Experimental extension: Report extension for creation of a report (involving supplementary instructions for objective)
