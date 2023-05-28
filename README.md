@@ -1,32 +1,40 @@
+# BabyAGI-Llama 🦙
+
+## This is a side branch of BabyAGI with enhancements...
+  - Smart internet search extension, based on BabyCatAGI implementation
+  - Document embedding extension: Q&A retrieval in langchain using code from the popular repo 'privateGPT'
+    - Adding of stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
+  - Persistent entity memory: Based on document embedding vector store, update each cycle with extended task results, including all smart search data if available.
+  - Full Llama support for all functionalities, including smar internet serach
+  - Wikipedia search as smart search supplement and as context for next task.
+  - Simple print to file functionality for terminal output
+  - Experimental: Report extension for creation of a report (involving supplementary instructions for objective)
+
 ************************************************************
-# BabyAGI-Llama: Optimized for running 100% local, using Llama models for all actions
-### ***Internet search w/o API key and LLM powered summary creation (based on BabyCatAGI implementation)***
-### ***Document embedding with Q&A retrieval in langchain using code from the popular repo 'privateGPT'***
-#### ***--- Running continuously with a 7B-Llama,... creating & processing the task list, analysing web scrape results, doing Q&A retrieval with embedded document store, all in parallel and w/o getting stuck in loops or aborting prematurely. This is pretty awesome! 😋 ---***
 
-![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Llama_Running.jpeg)
+## Smart internet search
+Toplist search and subsequent web page scraping, with LLM powered result summarization. Works with Google CSE, SERPAPI and browser search. Fallback mechanism in case of API rate limit. Works also w/o any API key using duckduckgo and brower search.
 
-************************************************************
-## What has been adapted/added/optimized?
-
-- Enhancement for Llama models with several new parameters, safety mechanisms and context truncation
-  - Refinement of Llama setup with new parameters (added to .env file)
-  - Enhancement of all agent prompts for Llama with limited context and optimizations as e.g. limtation of context length
-- Smart internet search with summary creation as extensions
-  - The functionality is based on BabyCatAGI, Llama support has been added
-  - Supported is Google CSE, SERPAPI and browser based search using duckduckgo, hence no API key is required
-  - Execution agent prompt has been adapted for LLM reasoning when to trigger internet search
-  - The scrape results are evaluated and summarized by LLM
-- New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
+## Document embedding with langchain
+New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
   - The main functionality from file privateGPT.py has been integrated in BabyAGI
-  - Document loader as separate script (document-loader.py)
-  - Documents in subfolder "source_documents" are loaded and embedded in a chromadb vector store
+  - Document loader as separate script (slightly modified ingest.py)
+  - Additional script scraper.py for toplist search and scraping of web pages related to objective and adding to vector store before the task procedure is started
+  - Q&A retrieval script qa-retrieval.py (slightly modified privateGPT.py) is good for vector store evaluation purposes
+  - Documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store (create the folder)
   - Many thanks to https://github.com/imartinez for the great work!
-- Adding of simple write functionality for continuous terminal output to .txt-file
-- Many minor optimizations/beautifications to the original code
-************************************************************
-## Experience and motivation
 
+## Persistent entity memory with document embedding vector store
+The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is quite extensive, expecially when smart internet search results are available. Beside the LLM powered result summary and a validation result, the complete scraping data is stored and embedded in vector store.
+
+## Full Llama support, 100% local operation possible
+By limiting the context size for document embedding, smart search results, etc. and changing the Llama setup a bit, it is possible to have BabyAGI run stable with 7B-Llama. It is slower than with OpenAI models, but reasonable (on my MacBook M1 with 16GB RAM). Web scraping result summary takes the longest.
+
+Running continuously with a 7B-Llama,... creating & processing the task list, analysing web scrape results, doing Q&A retrieval with embedded document store, all in parallel and w/o getting stuck in loops or aborting prematurely. This is pretty awesome! 😋
+
+************************************************************
+
+## Experience and motivation
 The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. But the smart internet search is a great improvement in general and helps the 7B-Llama not to get stuck. The failsafe mechanisms for Llama (see parameter LLAMA_FAILSAFE) are still experimental, but help to keep the system running when context is lost by re-iterating step(s). Most important parameters is the context limit (LLAMA_CONTEXT).
 
 The document embedding functionality from privateGPT is awesome. Document loading is super quick. The Q&A retrieval with 7B-Llama is a bit slow but acceptable. With the extension enabled and enough data embedded, the task process with 7B-Llama works very stable. Anyhow, try for yourself...
@@ -36,15 +44,15 @@ You might ask the question: "Why using a Llama when OpenAI and its excellent mod
 I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using mostly gpt-3.5-turbo and rarely gpt-4. With new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits...
 
 ************************************************************
-## Llama models
 
+## Llama models
 You can find precompiled .bin files of popular Llamas for example in this repo: https://github.com/nomic-ai/gpt4all/tree/main/gpt4all-chat
 - https://gpt4all.io/models/ggml-wizardLM-7B.q4_2.bin (md5sum 99e6d129745a3f1fb1121abed747b05a) An non-commercially licensable model based on Llama 7b and trained by Microsoft and Peking University.
 - https://gpt4all.io/models/ggml-vicuna-7b-1.1-q4_2.bin (md5sum 29119f8fa11712704c6b22ac5ab792ea) An non-commercially licensable model based on Llama 7b and trained by teams from UC Berkeley, CMU, Stanford, MBZUAI, and UC San Diego.
-- https://gpt4all.io/models/ggml-mpt-7b-instruct.bin (md5sum 1cfa4958f489f0a0d1ffdf6b37322809) A commercially licensable instruct model based on MPT and trained by Mosaic ML.
-- https://gpt4all.io/models/ggml-mpt-7b-base.bin (md5sum 120c32a51d020066288df045ef5d52b9) A commercially licensable model base pre-trained by Mosaic ML.
 
 The models wizardLM-7B and vicuna-7B do work best for me on MacBook M1 with 16GB RAM. Unfortunately I am not able to persuade a 13B model to run with a reasonable token rate. Runs at something like 1 token per minute.
+
+Some popular models like mpt-7B (chat, instruct and storyteller) or the new Guanaco-7B are not working. I think a newer version of Llama-Cpp is required, still need to have a look into this...
 
 ********************
 ... from here onwards the original readme from main branch.
