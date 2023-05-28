@@ -1,0 +1,5 @@
+# This file contains the list of all completed task results (for Q&A retrieval), if available with web scrape summary, LLM validated summary, source URLs and complete web pages (for later using with 'ingest.py')
+# The write feature can be enabled/disbaled with ENABLE_DOC_UPDATE.
+# The update of document embedding with new result data for presistent entity vector memory (see ENABLE_STORE_UPDATE) works indepently from this file.
+# New result data (which is not yet stored) is appended to this file. If the vectorstore (see DOC_STORE_NAME) is deleted, BabyAGI's persistent entity memory is 'erased', but still exists in this file (and can be loaded again with 'ingest.py')...
+
