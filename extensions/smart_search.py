@@ -30,7 +30,6 @@ USER_AGENTS = [
 
 # OS configuration
 OBJECTIVE = os.getenv("OBJECTIVE", "")
-INITIAL_TASK = os.getenv("INITIAL_TASK", "")
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY", "")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID", "")
@@ -40,11 +39,6 @@ SCRAPE_LENGTH = int(os.getenv("SCRAPE_LENGTH", 5000))
 SUMMARY_CTX_MAX = int(os.getenv("SUMMARY_CTX_MAX", 1024))
 LLAMA_THREADS_NUM = int(os.getenv("LLAMA_THREADS_NUM", 8))
 SUMMARY_TEMPERATURE = float(os.getenv("SUMMARY_TEMPERATURE", 0.7))
-
-# Report extension
-ENABLE_REPORT_EXTENSION = os.getenv("ENABLE_REPORT_EXTENSION", "false").lower() == "true"
-INSTRUCTION = os.getenv("INSTRUCTION", "")
-ACTION = os.getenv("ACTION", "")
 
 
 # API function: Search with SERPAPI, Google CSE or with browser (with fallback strategy to browser mode)
@@ -167,22 +161,24 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
 
     i = int(0)
     results=""
-    # Scrape the search results
+    scrape_texts=""
+    # Scrape and sumarize the search results
     if search_results:
-        for result in search_results and links[i]:
-            print("\033[90m\033[3m" + f"Scraping '{links[i]}'...\033[0m")
-            print_to_file(f"Scraping '{links[i]}'...\n", 'a')
-            content = web_scrape_tool(links[i], task)
-            print("\033[90m\033[3m" + str(content) + "\n\033[0m")
-            print_to_file(str(content) + "\n", 'a')
-            results += str(content) + ". "
+        for link in links:
+            print("\033[90m\033[3m" + f"Scraping '{link}'...\033[0m")
+            print_to_file(f"Scraping '{link}'...\n", 'a')
+            summary, scrape = web_scrape_tool(link, task)
+            print("\033[90m\033[3m" + str(summary) + "\n\033[0m")
+            print_to_file(str(summary) + "\n", 'a')
+            results += str(summary) + ". "
+            scrape_texts += scrape
             i+=1
             if i >= num_extracts:
                 break
     else:
         print("\033[90m\033[3m" + "No search results found.\033[0m")
 
-    return results
+    return results, scrape_texts, links
 
 
 ### Tool functions ##############################
@@ -276,7 +272,7 @@ def web_scrape_tool(url: str, task:str):
     #result = f"{info} URLs: {', '.join(links)}"
     result = info
     
-    return result
+    return result, text
 
 
 def fetch_url_content(url: str):
@@ -302,8 +298,6 @@ def extract_text(content: str):
 
 
 def extract_relevant_info(objective, large_string, task):
-    chunk_size = int(CONTEXT_LENGTH)
-    overlap = int(chunk_size*0.1)
     notes = ""
     
     # Setup Llama model
@@ -311,6 +305,9 @@ def extract_relevant_info(objective, large_string, task):
     if SUMMARY_MODEL_PATH:
         if can_import("llama_cpp"):
             from llama_cpp import Llama
+
+            chunk_size = int(CONTEXT_LENGTH/2)
+            overlap = int(chunk_size*0.1)
 
             print(f"LLAMA : {SUMMARY_MODEL_PATH}" + "\n")
             assert os.path.exists(SUMMARY_MODEL_PATH), "\033[91m\033[1m" + f"Search summary Llama model can't be found." + "\033[0m\033[0m"
@@ -322,18 +319,14 @@ def extract_relevant_info(objective, large_string, task):
                 n_threads=LLAMA_THREADS_NUM,
                 n_batch=512,
                 use_mlock=False,
+                seed=-1,
             )
 
             for i in range(0, len(large_string), chunk_size - overlap):
                 chunk = large_string[i:i + chunk_size]
-                if ENABLE_REPORT_EXTENSION and INITIAL_TASK not in task:
-                    messages = f'Objective: {objective} Task: {task}\n'
-                    messages += f'Consider the following action which shall be executed based on the objective, ignore for creation of a task list: {ACTION}\n'
-                    messages += f'Consider the following instructions for execution of the action, ignore for creation of a task list: {INSTRUCTION}\n\n'
-                else:
-                    messages = f'Objective: {objective} Task: {task}\n\n'
-                messages += f'Analyze the following text and extract information relevant to the objective and task, and only relevant information to the objective and task. Consider incomprehensible information as not relevant. If there is no relevant information do not say that there is no relevant information related to our objective. ### Then, update or start our notes provided here (keep blank if currently blank): {notes}. ### Text to analyze (ignore text if it is a string of keywords and not verbalized in sentences): {chunk}. ### Updated Notes: '
-                response = llm(prompt=messages[0:SUMMARY_CTX_MAX],
+                messages = f'Objective: {objective} Task: {task}\n\n'
+                messages += f'Analyze the following text and extract information relevant to the objective and task, and only relevant information to the objective and task. Consider incomprehensible or implausible information, or information which is a string of bullet points or keywords and not verbalized in sentences as not relevant. If there is no relevant information do not say that there is no relevant information related to our objective. ### Then, update or start our notes provided here (keep blank if currently blank, if notes include a string of keywords or letters, delete the notes): {notes}. ### Text to analyze: {chunk}. ### Updated Notes: '
+                response = llm(prompt=messages[0:CONTEXT_LENGTH],
                             stop=["###"],
                             echo=False,
                             temperature=SUMMARY_TEMPERATURE,
@@ -342,11 +335,15 @@ def extract_relevant_info(objective, large_string, task):
                             repeat_penalty=1.05,
                             max_tokens=400)
                 
-                notes += response['choices'][0]['text'].strip()+". "
-                print(f"Search summary result for chunk '{i}':\n" + response['choices'][0]['text'].strip()+". ")
+                if response['choices'][0]['text'].strip()+". " not in notes:
+                    notes += response['choices'][0]['text'].strip()+". "
+                print(f"Search summary result for part {i}:\n" + response['choices'][0]['text'].strip()+". ")
     
     # Otherwise setup GPT-3 model
     else:
+        chunk_size = int(CONTEXT_LENGTH/2)
+        overlap = int(chunk_size*0.1)
+
         for i in range(0, len(large_string), chunk_size - overlap):
             chunk = large_string[i:i + chunk_size]
             messages = [
@@ -362,7 +359,7 @@ def extract_relevant_info(objective, large_string, task):
                 temperature=0.7,
             )
             notes += response.choices[0].message['content'].strip()+". "
-            #print(f"Search summary result for chunk '{i}':\n" + response['choices'][0]['text'].strip()+". ")
+            #print(f"Search summary result for part {i}:\n" + response['choices'][0]['text'].strip()+". ")
 
     return notes
 
