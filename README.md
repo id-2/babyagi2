@@ -6,23 +6,24 @@
     - New: Stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
   - New: Persistent entity memory, based on document embedding vector store
   - Full Llama support for all functionalities, including smart internet serach
-  - New: Wikipedia search as smart search supplement and as context for next task
+  - New: Wikipedia search as smart search supplement or as context for next task
   - Simple continuous print to file functionality for terminal output
   - Experimental extension: Report extension for creation of a report (involving supplementary instructions for objective)
   - Adding of task information (beside ojective) in query for context agent
   - Many minor changes/optimizations/beautifications for original code
+  - See the new parameters in .env.example
 
 ************************************************************
 
 ## Smart internet search
-Toplist search and subsequent web page scraping, with LLM powered result summarization. Works with Google CSE, SERPAPI and browser search. Fallback mechanism in case of API rate limit. Works also w/o any API key using duckduckgo and brower search.
+Toplist Google search and subsequent web page scraping, with LLM powered result summarization. Works with Google CSE, SERPAPI and browser search. Fallback mechanism in case of API rate limit. Works also w/o any API key using duckduckgo and brower search.
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-SmartSearch.jpeg)
 
 ## Document embedding with langchain
 New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
   - Many thanks to https://github.com/imartinez for the great work!
-  - The main functionality from file privateGPT.py has been integrated in BabyAGI
+  - The main functionality from script privateGPT.py has been integrated in BabyAGI
   - Document loader as separate script (slightly modified ingest.py), documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store
   - Additional script scraper.py for toplist search and scraping of web pages related to objective and adding to vector store before the task procedure is started
   - Q&A retrieval script qa-retrieval.py (slightly modified privateGPT.py) is good for vector store evaluation purposes
