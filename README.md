@@ -19,6 +19,8 @@
 ## Smart internet search
 Toplist search and subsequent web page scraping, with LLM powered result summarization. Works with Google CSE, SERPAPI and browser search. Fallback mechanism in case of API rate limit. Works also w/o any API key using duckduckgo and brower search.
 
+![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-SmartSearch.jpeg)
+
 ## Document embedding with langchain
 New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
   - Many thanks to https://github.com/imartinez for the great work!
