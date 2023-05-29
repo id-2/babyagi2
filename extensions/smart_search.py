@@ -125,13 +125,9 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
     if mode == "browser":
         access_counter = 0
         while (access_counter < 3):
-            url = f"https://duckduckgo.com/html/?q={query}"
+            url = f"https://www.duckduckgo.com/html/?q={query}"
             index = math.floor(random.random() * len(user_agents_list))
-            browser_header = {  'User-Agent': user_agents_list[index]   }
-                                #'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3', 
-                                #'accept-encoding': 'gzip, deflate, br', 
-                                #'accept-language': 'en-US,en;q=0.9,en;q=0.8' }
-
+            browser_header = {'User-Agent': user_agents_list[index]}
             search_results = requests.get(url, headers=browser_header, timeout=5)
             if search_results.status_code == 200:
                 try:
@@ -272,9 +268,8 @@ def web_scrape_tool(url: str, task:str):
         return None
 
     # Extract with bs4 for summarization and newspaper3k for raw page content
-    #raw = extract_text_newspaper3k(url)
-    raw = extract_text_extended(content)
-    print("\033[90m\033[3m" + "Raw page content extracted with newspaper3k (used as enriched result data)...\033[0m")
+    raw = "Web page scrape extract(Newspaper3k):\n" + extract_text_newspaper3k(url) + "\nWeb page scrape extract (BeautifulSoup):\n" + extract_text_extended(content)
+    print("\033[90m\033[3m" + "Raw page content extracted using Newspaper3k and BeautifulSoup...\033[0m")
     text = extract_text(content)
 
     print("\033[90m\033[3m" + f"Scrape completed with length: {len(text)}. Now extracting relevant info with scrape length: {SCRAPE_LENGTH} and summary length: {CONTEXT_LENGTH}\033[0m")
