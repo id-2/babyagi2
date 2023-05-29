@@ -48,13 +48,13 @@ Running continuously with a 7B-Llama,... creating & processing the task list, an
 ************************************************************
 
 ## Experience and motivation
-The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. But the smart internet search and document embedding are great improvements in general and help the 7B-Llama not to get stuck. Most important parameters is the context limit (LLAMA_CONTEXT) and token limit (MAX_TOKENS).
+The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. The smart internet search and document embedding are great improvements in general and help the 7B-Llama not to get stuck. Most important parameter is the context limit (LLAMA_CONTEXT) and token limit (MAX_TOKENS).
 
-The document embedding functionality from privateGPT is awesome. Document loading is super quick. The Q&A retrieval with 7B-Llama is a bit slow but acceptable. With the extension enabled and enough data embedded, the task process with 7B-Llama works very stable. Anyhow, try for yourself...
+The document embedding functionality from privateGPT is awesome. Document loading is super quick. The Q&A retrieval with 7B-Llama is a bit slow but acceptable. With the extension enabled and enough related data embedded, the task process with 7B-Llama works very stable. Anyhow, try for yourself...
 
 You might ask the question: "Why using a Llama when OpenAI and its excellent models are available?"
 
-I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using mostly gpt-3.5-turbo and rarely gpt-4. With new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits...
+I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using mostly gpt-3.5-turbo and rarely gpt-4. But anyhow, with new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits...
 
 ************************************************************
 
