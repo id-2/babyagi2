@@ -68,6 +68,7 @@ Up to now text from task result or smart search is written to the file, based on
 See below some things I did notice during my many hours of testing & tinkering:
   - It can happen that BabyAGI stops after the first cycle due to empty task prioritization list, simply re-start in this case.
     - If a re-start does not help, try to enable internet search and/or document embedding. This gives the Llama more context and seems to help.
+    - If this does not help either, delete the document embedding vector store
   - I did observe sporadic error messages regarding token limit and document embedding a large vector store (several thousand pages). Also here a re-start solves the problem in most cases.
   - A token limit of 1000 (see parameter MAX_TOKENS) works best for 7B-Llama
     - The parameter LLAMA_CTX_MAX should be set to 2048, with LLAMA_CONTEXT set to 2000. I did split those parameters intentionally (both are related to N_CTX) for better tinkering.
