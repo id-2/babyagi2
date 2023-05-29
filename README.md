@@ -41,7 +41,8 @@ The document embedding LLM has its own model & settings, separate from task proc
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-DocEmbedding.jpeg)
 
 ## Persistent entity memory with vector store
-The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is extensive, expecially when smart internet search results are available. Beside the LLM powered result summary the raw web page scrape content is stored and embedded in vector store. 
+The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. The extended result data can be quite large when smart internet search results are available. Beside the LLM powered web scrape result summary, the raw web page scrape content is stored and embedded in vector store. 
+The feature can be disabled by a parameter in .env, switching the vector store to "read-only".
 
 With enabled document embedding extension the updated vector store then provides context for the next task by Q&A retrieval.
 
@@ -50,7 +51,7 @@ With enabled document embedding extension the updated vector store then provides
 Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_documents". When the vector store is deleted, the "memory" still exists in this file. The file can be used for embedding again using stand-alone script ingest.py (see document embedding extension).
 
 ## Full Llama support: 100% local operation possible
-By limiting the context size for document embedding, smart search results, etc. and changing the Llama setup a bit, it is possible to have BabyAGI run stable with 7B-Llama. It is slower than with OpenAI models, but reasonable (on my MacBook M1 with 16GB RAM).
+By limiting the context size for document embedding, smart search results, etc. and changing the Llama setup a bit, it is possible to have BabyAGI run (mostly) stable with 7B-Llama. It is slower as with OpenAI models, but reasonable (on my MacBook M1 with 16GB RAM).
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Llama%20Operation.jpeg)
 
@@ -69,7 +70,7 @@ See below some things I did notice during my many hours of testing & tinkering:
   - It can happen that BabyAGI stops after the first cycle due to empty task prioritization list, simply re-start in this case.
     - If a re-start does not help, try to enable internet search and/or document embedding. This gives the Llama more context and seems to help.
     - If this does not help either, delete the document embedding vector store
-  - I did observe sporadic error messages regarding token limit and document embedding a large vector store (several thousand pages). Also here a re-start solves the problem in most cases.
+  - I did observe sporadic error messages regarding token limit for document embedding with a large vector store (several thousand pages). Also here a re-start solves the problem in most cases.
   - A token limit of 1000 (see parameter MAX_TOKENS) works best for 7B-Llama
     - The parameter LLAMA_CTX_MAX should be set to 2048, with LLAMA_CONTEXT set to 2000. I did split those parameters intentionally (both are related to N_CTX) for better tinkering.
     - According to what I could find out Llamas should support a context size of 2048 in general, but I am not sure if this is correct. Works at least with wizardLM-7B and vicuna-7B.
