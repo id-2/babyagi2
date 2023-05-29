@@ -5,10 +5,10 @@
   - Document embedding extension: Q&A retrieval in langchain using code from the popular repo 'privateGPT'
     - New: Stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
   - New: Persistent entity memory, based on document embedding vector store
-  - Full Llama support for all functionalities, including smart internet serach
+  - Full Llama support for all functionalities, including smart internet search
   - New: Wikipedia search as smart search supplement or as context for next task
   - Simple print to file functionality for terminal output
-  - Experimental extension: Report extension for creation of a report (involving supplementary instructions for objective)
+  - Experimental: Report extension for creation of a report (involving supplementary instructions for objective)
   - Adding of task information (beside ojective) in query for context agent
   - Various updates for agent prompts, including conditions with instructions for the new extensions
   - Many minor changes/optimizations/beautifications for code
@@ -16,31 +16,33 @@
 
 ************************************************************
 
-## Smart internet search
+## Smart internet search extension
 Toplist Google search and subsequent web page scraping. LLM powered scrape result summarization (reading of lengthy result in chunks).
-
-Works with Google CSE, SERPAPI and browser search. Fallback mechanism in case of API rate limit or missing API key (CSE -> SERPAPI -> browser search). Works also w/o any API key with browser search.
+  - Works with Google CSE, SERPAPI and browser search
+  - Fallback mechanism in case of API rate limit or missing API key (CSE -> SERPAPI -> browser search). Works also w/o any API key with browser search.
+  - Adding of a second web page scrape function for retrieval of a more compact extract (used for persistent entity memory).
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-SmartSearch.jpeg)
 
-## Document embedding with langchain
+## Document embedding extension (using langchain)
 New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
   - Many thanks to https://github.com/imartinez for the great work!
   - The main functionality from script privateGPT.py has been integrated in BabyAGI
-  - Document loader as separate script (slightly modified ingest.py), documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store
-  - Additional script scraper.py for toplist search and scraping of web pages related to objective and adding to vector store before the task procedure is started
-  - Q&A retrieval script qa-retrieval.py (slightly modified privateGPT.py) is good for vector store evaluation purposes
+  - New stand-alone scripts as supplementary tools for BabyAGI:
+    - scraper.py: Google toplist search and scraping of web pages related to the objective (using a slightly modified version of smart internet search). The results can be added to the document vector store before the task procedure is started with script ingest.py (see the following item)
+    - ingest.py: Document loader, documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store (slightly modified version from privateGTP)
+    - qa-retrieval.py: Q&A retrieval with document embedding vector store, useful for evaluation purposes (slightly modified version of privateGPT.py)
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-DocEmbedding.jpeg)
 
-## Persistent entity memory with document embedding vector store
-The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is extensive, expecially when smart internet search results are available. Beside the LLM powered result summary a validated summary result is stored and embedded in vector store. 
+## Persistent entity memory with vector store
+The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is extensive, expecially when smart internet search results are available. Beside the LLM powered result summary the raw web page scrape content is stored and embedded in vector store. 
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Memory.jpeg)
 
-Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_documents".
+Beside the update of embedding vector store above, the extended result data is written to file, serving as backup. The data is stored in folder "scrape_documents". When the vector store is deleted, the "memory" still exists in this file. The file can be used for embedding again using stand-alone script ingest.py (see document embedding extension).
 
-## Full Llama support, 100% local operation possible
+## Full Llama support: 100% local operation possible
 By limiting the context size for document embedding, smart search results, etc. and changing the Llama setup a bit, it is possible to have BabyAGI run stable with 7B-Llama. It is slower than with OpenAI models, but reasonable (on my MacBook M1 with 16GB RAM).
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Llama%20Operation.jpeg)
