@@ -243,19 +243,17 @@ def text_writer(file_path: str, input: str, text: str):
     try:
         with open(file_path, 'r') as f:
             mode = 'a'
-            f.close()
     except:
         mode = 'w'
 
     write_flag = check_write(file_path, input, text)
     if input and write_flag:
         if input.startswith("As an AI assistant"):
-            input = input.split(". ")
+            input = input.split(". ")[1]
         with open(file_path, mode) as f:
             if mode == 'w':
                 f.write("# This file contains the list of all completed task results (for Q&A retrieval), if available with web scrape summary, LLM validated summary, source URLs and complete web pages (for later using with 'ingest.py')\n# The write feature can be enabled/disbaled with ENABLE_DOC_UPDATE.\n# The update of document embedding with new result data for presistent entity vector memory (see ENABLE_STORE_UPDATE) works indepently from this file.\n# New result data (which is not yet stored) is appended to this file. If the vectorstore (see DOC_STORE_NAME) is deleted, BabyAGI's persistent entity memory is 'erased', but still exists in this file (and can be loaded again with 'ingest.py')...\n\n")
             f.write(input)
-            f.close()
         return input
     elif not write_flag:
         return ""
