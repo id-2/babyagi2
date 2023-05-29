@@ -7,25 +7,26 @@ import re
 import importlib
 import random
 
+from newspaper import Article
+import math
+
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36"
 }
 
-USER_AGENTS = [
-    {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.143 Safari/537.36 OPR/23.0.1522.60"},  # Opera on Windows
-    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36"},  # Chrome on Windows
-    {"User-Agent": "Mozilla/5.0 (Linux; Android 11; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Mobile Safari/537.36"},  # Chrome on Android
-    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0"},  # Firefox on Windows
-    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"},  # Chrome on Windows
-    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36"},  # Chrome on Mac
-    {"User-Agent": "Mozilla/5.0 (Linux; Android 11; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Mobile Safari/537.36"},  # Chrome on Android
-    {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"},  # Safari on iOS
-    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Safari/605.1.15"},  # Safari on Mac
-    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.48"},  # Edge on Windows
-    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0"},  # Firefox on Windows
-    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0"},  # Firefox on Mac
-    {"User-Agent": "Mozilla/5.0 (Linux; Android 11; SM-A205U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/14.0 Chrome/90.0.4430.210 Mobile Safari/537.36"}  # Samsung Internet on Android
+user_agents_list_old = [
+   'Mozilla/5.0 (X11; Linux x86_64; rv:107.0) Gecko/20100101 Firefox/107.0',
+   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+]
+
+user_agents_list = [
+   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36',
+   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.3 Safari/605.1.15',
+   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:96.0) Gecko/20100101 Firefox/96.0',
+   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36',
+   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/98.0.1108.43'
 ]
 
 # OS configuration
@@ -125,7 +126,12 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
         access_counter = 0
         while (access_counter < 3):
             url = f"https://duckduckgo.com/html/?q={query}"
-            browser_header = random.choice(USER_AGENTS)
+            index = math.floor(random.random() * len(user_agents_list))
+            browser_header = {  'User-Agent': user_agents_list[index]   }
+                                #'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3', 
+                                #'accept-encoding': 'gzip, deflate, br', 
+                                #'accept-language': 'en-US,en;q=0.9,en;q=0.8' }
+
             search_results = requests.get(url, headers=browser_header, timeout=5)
             if search_results.status_code == 200:
                 try:
@@ -159,26 +165,28 @@ def web_search_tool(query: str, task: str, num_extracts: int, mode: str):
     if mode not in ["google", "serpapi", "browser"]:
         print(f'Error: Smart search mode "{mode}" is out-of-range.')
 
-    i = int(0)
-    results=""
-    scrape_texts=""
     # Scrape and sumarize the search results
+    i = int(0)
+    results = ""
+    scrape_texts = ""
+    scrape_raw = ""
     if search_results:
         for link in links:
             print("\033[90m\033[3m" + f"Scraping '{link}'...\033[0m")
             print_to_file(f"Scraping '{link}'...\n", 'a')
-            summary, scrape = web_scrape_tool(link, task)
+            summary, scrape, raw = web_scrape_tool(link, task)
             print("\033[90m\033[3m" + str(summary) + "\n\033[0m")
             print_to_file(str(summary) + "\n", 'a')
             results += str(summary) + ". "
             scrape_texts += scrape
+            scrape_raw += raw
             i+=1
             if i >= num_extracts:
                 break
     else:
         print("\033[90m\033[3m" + "No search results found.\033[0m")
 
-    return results, scrape_texts, links
+    return results, scrape_texts, scrape_raw, links
 
 
 ### Tool functions ##############################
@@ -263,7 +271,12 @@ def web_scrape_tool(url: str, task:str):
     if content is None:
         return None
 
+    # Extract with bs4 for summarization and newspaper3k for raw page content
+    #raw = extract_text_newspaper3k(url)
+    raw = extract_text_extended(content)
+    print("\033[90m\033[3m" + "Raw page content extracted with newspaper3k (used as enriched result data)...\033[0m")
     text = extract_text(content)
+
     print("\033[90m\033[3m" + f"Scrape completed with length: {len(text)}. Now extracting relevant info with scrape length: {SCRAPE_LENGTH} and summary length: {CONTEXT_LENGTH}\033[0m")
     print_to_file(f"Scrape completed with length: {len(text)}. Now extracting relevant info with scrape length: {SCRAPE_LENGTH} and summary length: {CONTEXT_LENGTH}\n", 'a')
     info = extract_relevant_info(OBJECTIVE, text[0:SCRAPE_LENGTH], task)
@@ -272,7 +285,7 @@ def web_scrape_tool(url: str, task:str):
     #result = f"{info} URLs: {', '.join(links)}"
     result = info
     
-    return result, text
+    return result, text, raw
 
 
 def fetch_url_content(url: str):
@@ -295,6 +308,22 @@ def extract_text(content: str):
     soup = BeautifulSoup(content, "html.parser")
     text = soup.get_text(strip=True)
     return text
+
+
+def extract_text_extended(content: str):
+    soup = BeautifulSoup(content, "html.parser")
+    for script in soup(["script", "style"]):
+        script.decompose()
+
+    text_parts = [tag.get_text(strip=True) for tag in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'])]
+    return " ".join(text_parts)
+
+
+def extract_text_newspaper3k(url: str):
+    article = Article(url)
+    article.download()
+    article.parse()
+    return article.text
 
 
 def extract_relevant_info(objective, large_string, task):
