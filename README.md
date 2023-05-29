@@ -22,6 +22,8 @@ Toplist Google search and subsequent web page scraping. LLM powered scrape resul
   - Fallback mechanism in case of API rate limit or missing API key (CSE -> SERPAPI -> browser search). Works also w/o any API key with browser search.
   - Adding of a second web page scrape function for retrieval of a more compact extract (used for persistent entity memory).
 
+The scrape result summary LLM has its own model & settings, separate from task process LLM. See .env file for details.
+
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-SmartSearch.jpeg)
 
 ## Document embedding extension (using langchain)
@@ -34,11 +36,14 @@ New document embedding with Q&A retrieval functionality from: https://github.com
     - qa-retrieval.py: Q&A retrieval with document embedding vector store, useful for evaluation purposes (slightly modified version of privateGPT.py)
 
 All stand-alone scripts are configured in .env file, see the document embedding extension and the description in comments.
+The document embedding LLM has its own model & settings, separate from task process LLM. See .env file for details.
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-DocEmbedding.jpeg)
 
 ## Persistent entity memory with vector store
 The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is extensive, expecially when smart internet search results are available. Beside the LLM powered result summary the raw web page scrape content is stored and embedded in vector store. 
+
+With enabled document embedding extension the updated vector store then provides context for the next task by Q&A retrieval.
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Memory.jpeg)
 
@@ -52,6 +57,15 @@ By limiting the context size for document embedding, smart search results, etc. 
 Running continuously with a 7B-Llama,... creating & processing the task list, analysing web scrape results, doing Q&A retrieval with embedded document store, all in parallel and w/o getting stuck in loops or aborting prematurely. 😋
 
 ************************************************************
+
+## Tipps, hints & observations for Llama operation
+  - It can happen that BabyAGI stops after the first cycle due to empty task prioritization list, simply re-start in this case.
+    - If a re-start does not help, try to enable internet search and/or document embedding. This gives the Llama more context and seems to help.
+  - I did observe sporadic error messages regarding token limit and document embedding and large vector store. Also here a re-start solves the problem in most cases.
+  - A token limit of 1000 (see parameter MAX_TOKENS) works best for 7B-Llama
+    - The parameter LLAMA_CTX_MAX should be set to 2048, with LLAMA_CONTEXT set to 2000. I did split those parameters intentionally (both are related to N_CTX) for better tinkering.
+    - According to what I could find out Llamas should support a context size of 2048 in general, but I am not sure if this is correct. Works at least with wizardLM-7B and vicuna-7B.
+    - Reducing LLAMA_CTX_MAX to 1024 makes the task procedure faster, but responses are getting truncated sometimes
 
 ## Experience and motivation
 The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of web scrape results, due to the amount of chunks. The smart internet search and document embedding are great improvements in general and help the 7B-Llama not to get stuck. Most important parameter is the context limit (LLAMA_CONTEXT) and token limit (MAX_TOKENS).
