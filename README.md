@@ -7,10 +7,11 @@
   - New: Persistent entity memory, based on document embedding vector store
   - Full Llama support for all functionalities, including smart internet serach
   - New: Wikipedia search as smart search supplement or as context for next task
-  - Simple continuous print to file functionality for terminal output
+  - Simple print to file functionality for terminal output
   - Experimental extension: Report extension for creation of a report (involving supplementary instructions for objective)
   - Adding of task information (beside ojective) in query for context agent
-  - Many minor changes/optimizations/beautifications for original code
+  - Various updates for agent prompts, including conditions with instructions for the new extensions
+  - Many minor changes/optimizations/beautifications for code
   - See the new parameters in .env.example
 
 ************************************************************
@@ -31,7 +32,7 @@ New document embedding with Q&A retrieval functionality from: https://github.com
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-DocEmbedding.jpeg)
 
 ## Persistent entity memory with document embedding vector store
-The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is quite extensive, expecially when smart internet search results are available. Beside the LLM powered result summary and a validation result, the complete scraping data is stored and embedded in vector store. 
+The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore the extended result data is extensive, expecially when smart internet search results are available. Beside the LLM powered result summary a validated summary result is stored and embedded in vector store. 
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-Memory.jpeg)
 
