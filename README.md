@@ -1,6 +1,6 @@
 # BabyAGI-Llama 🦙... with new updates
 
-## This is a side branch of BabyAGI with enhancements
+This is a side branch of BabyAGI with enhancements:
   - Smart internet search extension, based on BabyCatAGI implementation
   - Document embedding extension: Q&A retrieval in langchain using code from the popular repo 'privateGPT'
     - New: Stand-alone scripts as supplementary tools (ingest.py, scrape.py and qa-retrieval.py)
@@ -56,16 +56,25 @@ By limiting the context size for document embedding, smart search results, etc. 
 
 Running continuously with a 7B-Llama,... creating & processing the task list, analysing web scrape results, doing Q&A retrieval with embedded document store, all in parallel and w/o getting stuck in loops or aborting prematurely. 😋
 
+## Report creation extension (experimantal)
+
+This feature, when finished, shall create a report, summary or code as output to a file, involving parsing, update and development of the file.
+
+Up to now text from task result or smart search is written to the file, based on a marker in the text and supplementary instrcutions for the objective. See the parameters in .env file for details.
+
 ************************************************************
 
 ## Tipps, hints & observations for Llama operation
+See below some things I did notice during my many hours of testing & tinkering:
   - It can happen that BabyAGI stops after the first cycle due to empty task prioritization list, simply re-start in this case.
     - If a re-start does not help, try to enable internet search and/or document embedding. This gives the Llama more context and seems to help.
-  - I did observe sporadic error messages regarding token limit and document embedding and large vector store. Also here a re-start solves the problem in most cases.
+  - I did observe sporadic error messages regarding token limit and document embedding a large vector store (several thousand pages). Also here a re-start solves the problem in most cases.
   - A token limit of 1000 (see parameter MAX_TOKENS) works best for 7B-Llama
     - The parameter LLAMA_CTX_MAX should be set to 2048, with LLAMA_CONTEXT set to 2000. I did split those parameters intentionally (both are related to N_CTX) for better tinkering.
     - According to what I could find out Llamas should support a context size of 2048 in general, but I am not sure if this is correct. Works at least with wizardLM-7B and vicuna-7B.
     - Reducing LLAMA_CTX_MAX to 1024 makes the task procedure faster, but responses are getting truncated sometimes
+  - The Q&A retrieval with document embedding vector store works best with EMBEDDINGS_CTX_MAX set to 1024. Using wizardLM-7B and 2048 makes the Q&A retrieval very slow.
+  - The same applies for the smart search summary. Set the parameter SUMMARY_CTX_MAX to 1024 and SUMMARY_CONTEXT to 1000.
 
 ## Experience and motivation
 The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of web scrape results, due to the amount of chunks. The smart internet search and document embedding are great improvements in general and help the 7B-Llama not to get stuck. Most important parameter is the context limit (LLAMA_CONTEXT) and token limit (MAX_TOKENS).
@@ -85,7 +94,7 @@ You can find precompiled .bin files of popular Llamas for example in this repo: 
 
 The models wizardLM-7B and vicuna-7B do work best for me on MacBook M1 with 16GB RAM. Unfortunately I am not able to persuade a 13B model to run with a reasonable token rate. Runs at something like 1 token per minute.
 
-Some popular models like mpt-7B (chat, instruct and storyteller) or the new Guanaco-7B are not working. I think a newer version of Llama-Cpp is required, still need to have a look into this...
+Some popular models like mpt-7B (chat, instruct and storyteller) or the new Guanaco-7B are not working. I think a newer version of Llama-Cpp is required, still need to have a look into this.
 
 ********************
 ... from here onwards the original readme from main branch.
