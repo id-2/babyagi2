@@ -32,7 +32,7 @@ New document embedding with Q&A retrieval functionality from: https://github.com
   - The main functionality from script privateGPT.py has been integrated in BabyAGI
   - New stand-alone scripts as supplementary tools for BabyAGI:
     - scraper.py: Google toplist search and scraping of web pages related to the objective (using a slightly modified version of smart internet search). The results can be added to the document vector store before the task procedure is started with script ingest.py (see the following item)
-    - ingest.py: Document loader, documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store (slightly modified version from privateGTP)
+    - ingest.py: Document loader, documents in subfolder "source_documents" are loaded and embedded in a document embedding vector store (from privateGPT repo with minor changes)
     - qa-retrieval.py: Q&A retrieval with document embedding vector store, useful for evaluation purposes (slightly modified version of privateGPT.py)
 
 All stand-alone scripts are configured in .env file, see the document embedding extension and the description in comments.
