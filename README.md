@@ -17,7 +17,9 @@
 ************************************************************
 
 ## Smart internet search
-Toplist Google search and subsequent web page scraping, with LLM powered result summarization. Works with Google CSE, SERPAPI and browser search. Fallback mechanism in case of API rate limit. Works also w/o any API key using duckduckgo and brower search.
+Toplist Google search and subsequent web page scraping. LLM powered scrape result summarization (reading of lengthy result in chunks).
+
+Works with Google CSE, SERPAPI and browser search. Fallback mechanism in case of API rate limit or missing API key (CSE -> SERPAPI -> browser search). Works also w/o any API key with browser search.
 
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-SmartSearch.jpeg)
 
@@ -48,7 +50,7 @@ Running continuously with a 7B-Llama,... creating & processing the task list, an
 ************************************************************
 
 ## Experience and motivation
-The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of internet search results. The smart internet search and document embedding are great improvements in general and help the 7B-Llama not to get stuck. Most important parameter is the context limit (LLAMA_CONTEXT) and token limit (MAX_TOKENS).
+The overall speed is a bit slow with a 7B-Llama, but it works. The task processing speed is not so bad at all, what takes time is the summarization of web scrape results, due to the amount of chunks. The smart internet search and document embedding are great improvements in general and help the 7B-Llama not to get stuck. Most important parameter is the context limit (LLAMA_CONTEXT) and token limit (MAX_TOKENS).
 
 The document embedding functionality from privateGPT is awesome. Document loading is super quick. The Q&A retrieval with 7B-Llama is a bit slow but acceptable. With the extension enabled and enough related data embedded, the task process with 7B-Llama works very stable. Anyhow, try for yourself...
 
