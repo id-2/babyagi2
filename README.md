@@ -87,6 +87,8 @@ You might ask the question: "Why using a Llama when OpenAI and its excellent mod
 
 I did tinker a lot with agents like BabyAGI or AutoGPT and its derivates, using mostly gpt-3.5-turbo and rarely gpt-4. But anyhow, with new functions and concepts like smart internet search, involving summarization in chunks by LLM, or document embedding with Q&A retrieval my API rate went ballistic. And that's where I started looking for alternatives. Of course GPT is much more powerful and has bigger context length, but using Llamas 100% locally has its own merits...
 
+I am sure I did miss to add some of the new required packages in requirements.txt. Please be advised that you will need to install some libraries manually using "pip install".
+
 ************************************************************
 
 ## Llama models
