@@ -27,7 +27,7 @@ The scrape result summary LLM has its own model & settings, separate from task p
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-SmartSearch.jpeg)
 
 ## Document embedding extension (using langchain)
-New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
+New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git.
 Many thanks to https://github.com/imartinez for the great work!
   - The main functionality from script privateGPT.py has been integrated in BabyAGI
   - New stand-alone scripts as supplementary tools for BabyAGI:
@@ -41,7 +41,7 @@ The document embedding LLM has its own model & settings, separate from task proc
 ![image](https://github.com/robiwan303/babyagi/blob/main/BabyAGI-DocEmbedding.jpeg)
 
 ## Persistent entity memory with vector store
-The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. The extended result data can be quite large when smart internet search results are available. Beside the LLM powered web scrape result summary, the raw web page scrape content is stored and embedded in vector store. 
+The intention behind this functionality is to give BabyAGI a long-term memory, compensating for the context limit. Therefore extended result data gets stored, which can be quite large when smart internet search results are available. Beside the LLM powered web scrape result summary, the raw web page scrape content is stored and embedded in vector store. 
 The feature can be disabled by a parameter in .env, switching the vector store to "read-only".
 
 With enabled document embedding extension the updated vector store then provides context for the next task by Q&A retrieval.
