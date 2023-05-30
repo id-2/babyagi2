@@ -28,7 +28,7 @@ The scrape result summary LLM has its own model & settings, separate from task p
 
 ## Document embedding extension (using langchain)
 New document embedding with Q&A retrieval functionality from: https://github.com/imartinez/privateGPT.git
-  - Many thanks to https://github.com/imartinez for the great work!
+Many thanks to https://github.com/imartinez for the great work!
   - The main functionality from script privateGPT.py has been integrated in BabyAGI
   - New stand-alone scripts as supplementary tools for BabyAGI:
     - scraper.py: Google toplist search and scraping of web pages related to the objective (using a slightly modified version of smart internet search). The results can be added to the document vector store before the task procedure is started with script ingest.py (see the following item)
